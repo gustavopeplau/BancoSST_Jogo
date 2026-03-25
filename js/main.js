@@ -448,41 +448,72 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
             game.updateUI();
         }
 
-        // Se agora é a vez do bot, executa o turno do bot (com retry caso isAnimating)
-        if (game.currentPlayerIndex === playerIndex) {
-            retryBotExecution(btnRoll, diceResultEl, 10);
-        }
+        // Dispara bot se é a vez dele (com retry caso isAnimating)
+        retryBotExecution(btnRoll, diceResultEl, 15);
     });
 
     // Quando o turno muda, verifica se o próximo jogador é um bot
     globalBus.on(GameEvents.TURN_ENDED, () => {
-        setTimeout(() => executeBotTurnIfNeeded(btnRoll, diceResultEl), 500);
+        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 10), 800);
+    });
+
+    // Quando rola dupla (não emite TURN_ENDED), o bot precisa rolar de novo
+    globalBus.on(GameEvents.DICE_DOUBLE, () => {
+        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 10), 1200);
     });
 }
+
+// Evita que dois bots rodem ao mesmo tempo
+let _botRunning = false;
+// Cleanup global dos patches do ModalManager (mantido entre turnos)
+let _botCleanup = null;
 
 /**
  * Tenta executar o bot com retry caso isAnimating esteja true.
  */
 function retryBotExecution(btnRoll, diceResultEl, retries) {
     const game = SST_GLOBAL_GAME;
-    if (!game || retries <= 0) return;
-    if (game.isAnimating) {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1), 1500);
+    if (!game || game.gameOver || retries <= 0) return;
+    if (_botRunning || game.isAnimating) {
+        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1), 1000);
         return;
     }
     executeBotTurnIfNeeded(btnRoll, diceResultEl);
 }
 
 /**
+ * Ativa os patches do ModalManager para o bot, se ainda não estão ativos.
+ */
+function ensureBotPatches() {
+    if (!_botCleanup) {
+        _botCleanup = BotManager.enableAutoRespond(ModalManager);
+    }
+    BotManager.activateAutoSelect();
+}
+
+/**
+ * Remove os patches do ModalManager, restaurando o comportamento normal.
+ */
+function clearBotPatches() {
+    if (_botCleanup) {
+        _botCleanup();
+        _botCleanup = null;
+    }
+}
+
+/**
  * Se o jogador atual é um bot e este cliente é o próximo jogador humano conectado,
- * executa o turno do bot automaticamente.
+ * executa o turno do bot automaticamente (loop completo com duplas e encadeamento).
  */
 async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
     const game = SST_GLOBAL_GAME;
-    if (!game || game.gameOver || game.isAnimating) return;
+    if (!game || game.gameOver || game.isAnimating || _botRunning) return;
 
     const currentPlayer = game.getCurrentPlayer();
-    if (!currentPlayer || !currentPlayer.isBot) return;
+    if (!currentPlayer || !currentPlayer.isBot) {
+        clearBotPatches();
+        return;
+    }
 
     // Determina quem deve executar o turno do bot:
     // O próximo jogador humano conectado (cyclic) executa.
@@ -501,30 +532,45 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
     // Só executa se EU sou o executor designado
     if (executorIndex !== myIndex) return;
 
+    _botRunning = true;
     console.log(`[BOT] Executando turno de ${currentPlayer.name} (bot) — executor: jogador ${myIndex}`);
     addChatMessage('Sistema', '#ff9800', `🤖 ${currentPlayer.name} está jogando automaticamente...`);
 
     // Ativa auto-resposta do ModalManager e auto-select de tiles
-    const cleanup = BotManager.enableAutoRespond(ModalManager);
-    BotManager.activateAutoSelect();
+    ensureBotPatches();
 
-    const playerIdBefore = game.currentPlayerIndex;
-
-    // Executa o turno do bot (mesma lógica de handleTurnRoll)
-    await game.handleTurnRoll(btnRoll, diceResultEl);
-
-    // Se ainda é o mesmo jogador (houve DUPLA), rola novamente
-    if (!game.gameOver && game.currentPlayerIndex === playerIdBefore && currentPlayer.isBot && !game.isAnimating) {
-        console.log(`[BOT] Dupla detectada, rolando novamente...`);
-        BotManager.activateAutoSelect();
-        await game.handleTurnRoll(btnRoll, diceResultEl);
+    try {
+        // Loop de duplas: enquanto for o mesmo jogador (dupla), rola de novo
+        let safety = 0;
+        do {
+            const idBefore = game.currentPlayerIndex;
+            BotManager.activateAutoSelect();
+            await game.handleTurnRoll(btnRoll, diceResultEl);
+            safety++;
+            // Se o turno avançou (não é dupla) ou jogo acabou, sai do loop
+            if (game.gameOver || game.currentPlayerIndex !== idBefore || safety >= 5) break;
+            // Espera breve antes de rolar dupla
+            console.log(`[BOT] Dupla detectada, rolando novamente...`);
+            await new Promise(r => setTimeout(r, 800));
+        } while (true);
+    } catch (e) {
+        console.error('[BOT] Erro durante turno bot:', e);
     }
 
-    // Limpa patches
-    cleanup();
+    _botRunning = false;
 
+    // NÃO limpa patches — eles serão limpos quando for a vez de um humano.
     // Verifica se o próximo jogador também é bot (encadeamento)
-    setTimeout(() => executeBotTurnIfNeeded(btnRoll, diceResultEl), 1000);
+    if (!game.gameOver) {
+        const next = game.getCurrentPlayer();
+        if (next && next.isBot) {
+            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 10), 1000);
+        } else {
+            clearBotPatches();
+        }
+    } else {
+        clearBotPatches();
+    }
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -242,20 +242,20 @@ io.on('connection', (socket) => {
                 room: rooms.getRoomPublicState(room.code),
             });
 
-            // Se o jogo já iniciou, após 15s sem reconexão, bot assume
+            // Se o jogo já iniciou, após 5s sem reconexão, bot assume
             if (room.started && !player.isBot) {
                 setTimeout(() => {
                     if (!player.connected && !player.isBot) {
                         player.isBot = true;
                         const playerIndex = room.players.indexOf(player);
-                        console.log(`[BOT] ${player.name} não reconectou em 15s, bot assumiu (sala ${room.code})`);
+                        console.log(`[BOT] ${player.name} não reconectou em 5s, bot assumiu (sala ${room.code})`);
                         io.to(room.code).emit('game:playerBecameBot', {
                             playerIndex,
                             playerName: player.name,
                             room: rooms.getRoomPublicState(room.code),
                         });
                     }
-                }, 15000);
+                }, 5000);
             }
 
             // Timeout de 60s para limpeza total
