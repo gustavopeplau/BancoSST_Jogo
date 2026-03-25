@@ -53,12 +53,11 @@ export class BotManager {
             return 'tryDoubles';
         };
 
-        // Quiz: responde aleatoriamente
+        // Quiz: bot tem 40% de chance de acertar (retorna boolean como o original)
         if (ModalManager.showQuiz) {
             ModalManager.showQuiz = async (card) => {
-                await sleep(1000);
-                const randomIndex = Math.floor(Math.random() * (card.answers || card.options || []).length);
-                return randomIndex;
+                await sleep(1500);
+                return Math.random() < 0.4; // 40% chance de acertar
             };
         }
 

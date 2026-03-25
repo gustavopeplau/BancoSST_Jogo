@@ -202,6 +202,30 @@ function addChatMessage(name, color, text) {
     });
 }
 
+function showBotTakeoverToast(playerName) {
+    const existing = document.querySelector('.bot-toast');
+    if (existing) existing.remove();
+    const safeName = playerName.replace(/[<>"&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;','&':'&amp;'}[c]));
+    const overlay = document.createElement('div');
+    overlay.className = 'bot-toast';
+    overlay.innerHTML = `
+        <div class="bot-toast-box">
+            <div class="bot-toast-icon">🤖</div>
+            <div class="bot-toast-title">Bot Assumiu o Controle</div>
+            <div class="bot-toast-msg"><strong>${safeName}</strong> deixou a partida.<br>Um <em>Bot especialista em SST</em> assumirá seu lugar e continuará jogando!</div>
+            <button class="bot-toast-btn">Entendido</button>
+        </div>`;
+    document.body.appendChild(overlay);
+    const btn = overlay.querySelector('.bot-toast-btn');
+    const dismiss = () => {
+        overlay.classList.add('bot-toast-fadeout');
+        setTimeout(() => overlay.remove(), 300);
+    };
+    btn.onclick = dismiss;
+    // Auto-dismiss após 6 segundos
+    setTimeout(() => { if (document.body.contains(overlay)) dismiss(); }, 6000);
+}
+
 function showOnlineRoom(roomCode) {
     document.getElementById('online-choice').style.display = 'none';
     document.getElementById('online-room').style.display = '';
@@ -413,6 +437,9 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
     globalBus.on('net:playerBecameBot', (data) => {
         const { playerIndex, playerName } = data;
         addChatMessage('Sistema', '#ff9800', `🤖 ${playerName} saiu do jogo. Um bot assumiu o controle.`);
+
+        // ── Toast visual proeminente ──────────────────────────
+        showBotTakeoverToast(playerName);
 
         // Marca jogador como bot no estado local
         if (game.players[playerIndex]) {

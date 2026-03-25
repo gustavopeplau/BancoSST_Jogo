@@ -8,7 +8,6 @@
       "server/**",
       "package.json",
       "package-lock.json",
-      "REGRAS_DO_JOGO.md",
       "render.yaml"
     ],
     "headers": [
