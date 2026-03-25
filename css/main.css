@@ -345,31 +345,32 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
         overflow: visible; padding: 4px 0;
     }
 
-    /* 2) Controles (rolar dados + áudio + chat) */
-    #right-hud {
-        order: 2; width: 100%; min-width: 0;
-        padding: 8px 10px;
-        background: var(--panel-bg);
-        border-top: 1px solid var(--glass-border);
-        border-left: none; border-right: none; border-bottom: none;
-    }
-    #right-hud #right-panel { display: none; } /* evita duplicar cards */
-
-    /* 3) Painel de jogadores (compacto, horizontal) */
+    /* 2) Meu jogador (sempre expandido, logo após tabuleiro) */
     #left-hud {
-        order: 3; width: 100%; min-width: 0;
+        order: 2; width: 100%; min-width: 0;
         padding: 6px 10px;
         background: var(--panel-bg);
         border-top: 1px solid var(--glass-border);
         border-left: none; border-right: none; border-bottom: none;
     }
-    #left-hud .panel-header { display: none; }
+    #left-hud .panel-header { font-size: .65rem; }
     #left-hud .player-panel-col {
-        flex-direction: row; flex-wrap: wrap; gap: 6px;
+        flex-direction: column; gap: 6px;
     }
     #left-hud .player-panel-col .player-hud-card {
-        flex: 1 1 45%; min-width: 130px;
+        flex: none; width: 100%; opacity: 1;
     }
+
+    /* 3) Controles (rolar dados + áudio + rivais + chat) */
+    #right-hud {
+        order: 3; width: 100%; min-width: 0;
+        padding: 8px 10px;
+        background: var(--panel-bg);
+        border-top: 1px solid var(--glass-border);
+        border-left: none; border-right: none; border-bottom: none;
+    }
+    /* Rivais colapsáveis via JS no right-panel */
+    #right-hud #right-panel { display: flex; flex-direction: column; gap: 4px; }
 
     /* Botão de rolar com toque fácil */
     #roll-area .btn-super {

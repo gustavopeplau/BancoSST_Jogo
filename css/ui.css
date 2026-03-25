@@ -386,6 +386,42 @@
 }
 
 /* ═══════════ TOAST: BOT TAKEOVER NOTIFICATION ═══════════ */
+
+/* ── Rival Cards (Mobile Collapsible) ───────────────── */
+.rival-card {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+}
+.rival-btn-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; cursor: pointer;
+    background: none; border: none; width: 100%; color: #fff;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s;
+}
+.rival-btn-header:active { background: rgba(255,255,255,0.05); }
+.rival-avatar { font-size: 1rem; flex-shrink: 0; }
+.rival-name { font-weight: 800; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+.rival-money { font-size: .82rem; font-weight: 900; color: #8ae37f; margin-left: auto; }
+.rival-props { font-size: .7rem; opacity: .5; }
+.rival-chevron { font-size: .6rem; opacity: .4; margin-left: 4px; }
+.rival-bot-tag { font-size: .7rem; }
+
+.rival-detail {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0 10px;
+}
+.rival-detail.rival-detail-open {
+    max-height: 300px; padding: 6px 10px 10px;
+}
+.rival-detail-row {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.rival-detail .phud-deck-grouped { max-height: 120px; overflow-y: auto; }
+
 .bot-toast {
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;

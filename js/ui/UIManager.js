@@ -1,6 +1,7 @@
 import { BOARD_DATA, GROUP_SIZE } from '../data/boardData.js';
 import { JuiceFX } from '../utils/JuiceFX.js';
 import { SoundManager } from '../utils/SoundManager.js';
+import { NetworkManager } from '../net/NetworkManager.js';
 
 const MATURITY_LABELS = [
     'Sem Maturidade',
@@ -26,24 +27,70 @@ const SESMT_INFO = {
 // Cache do último saldo conhecido de cada jogador (para animar mudanças)
 const _lastMoney = {};
 
+// Controla qual card rival está expandido no mobile
+let _expandedRivalId = null;
+
 export class UIManager {
+
+    static _isMobilePortrait() {
+        return window.innerWidth <= 900 && window.innerHeight > window.innerWidth;
+    }
 
     static updatePlayerHUDsInfoInHTMLGlobalDisplayBaseDaGame(players, currentIndex) {
         const leftPanel  = document.getElementById('left-panel');
         const rightPanel = document.getElementById('right-panel');
         if (!leftPanel || !rightPanel) return;
 
-        // Distribui: metade esquerda, metade direita
-        const half = Math.ceil(players.length / 2);
-        const leftPlayers  = players.slice(0, half);
-        const rightPlayers = players.slice(half);
+        const isMobile = UIManager._isMobilePortrait();
 
-        leftPanel.innerHTML = leftPlayers
-            .map((p, i) => UIManager._buildCard(p, i === currentIndex))
-            .join('');
-        rightPanel.innerHTML = rightPlayers
-            .map((p, i) => UIManager._buildCard(p, (i + half) === currentIndex))
-            .join('');
+        if (isMobile) {
+            // ── MOBILE PORTRAIT: "Meu card" expandido + rivais colapsáveis ──
+            // Online: meu jogador real; Offline: jogador ativo da vez
+            const myIndex = NetworkManager.playerId != null ? NetworkManager.playerId : currentIndex;
+            const myPlayer = players[myIndex] || players[0];
+            const rivals = players.filter((_, i) => i !== myIndex);
+
+            // Meu card no left-panel (sempre expandido)
+            leftPanel.innerHTML = UIManager._buildCard(myPlayer, myIndex === currentIndex);
+
+            // Rivais como botões colapsáveis no right-panel
+            rightPanel.innerHTML = rivals
+                .map(p => UIManager._buildRivalBtn(p, players.indexOf(p) === currentIndex))
+                .join('');
+
+            // Configura eventos de clique nos rivais
+            rightPanel.querySelectorAll('.rival-btn-header').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const pid = btn.dataset.pid;
+                    const detail = btn.nextElementSibling;
+                    if (_expandedRivalId === pid) {
+                        detail.classList.remove('rival-detail-open');
+                        _expandedRivalId = null;
+                    } else {
+                        rightPanel.querySelectorAll('.rival-detail').forEach(d => d.classList.remove('rival-detail-open'));
+                        detail.classList.add('rival-detail-open');
+                        _expandedRivalId = pid;
+                    }
+                });
+            });
+            // Re-expand previously expanded
+            if (_expandedRivalId) {
+                const detail = rightPanel.querySelector(`.rival-detail[data-pid="${_expandedRivalId}"]`);
+                if (detail) detail.classList.add('rival-detail-open');
+            }
+        } else {
+            // ── DESKTOP: distribui metade esquerda, metade direita ──
+            const half = Math.ceil(players.length / 2);
+            const leftPlayers  = players.slice(0, half);
+            const rightPlayers = players.slice(half);
+
+            leftPanel.innerHTML = leftPlayers
+                .map((p, i) => UIManager._buildCard(p, i === currentIndex))
+                .join('');
+            rightPanel.innerHTML = rightPlayers
+                .map((p, i) => UIManager._buildCard(p, (i + half) === currentIndex))
+                .join('');
+        }
 
         // Aplica animações de mudança de saldo após renderizar
         players.forEach(p => {
@@ -66,36 +113,43 @@ export class UIManager {
         });
     }
 
-    static _buildCard(player, isActive) {
+    /** Botão colapsável para rivais no mobile */
+    static _buildRivalBtn(player, isActive) {
         const matColor = MATURITY_COLORS[player.maturityLevel] || '#555';
-        const border   = isActive ? `2px solid ${player.color}` : '1px solid rgba(255,255,255,0.08)';
-        const bg       = isActive ? `rgba(${UIManager._hexToRgb(player.color)},0.1)` : 'rgba(0,0,0,0.25)';
-        const activeClass = isActive ? 'hud-active-glow' : '';
+        const propCount = player.ownedPropertiesIds.length;
+        const turnTag = isActive ? `<span class="turn-badge" style="background:${player.color}">▶ VEZ</span>` : '';
+        const botTag = player.isBot ? '<span class="rival-bot-tag">🤖</span>' : '';
+        const elimTag = player.eliminated ? '<span class="status-badge interdiction-badge">💀</span>' : '';
+        const jailTag = player.interdictionTurns > 0 ? '<span class="status-badge interdiction-badge">⛓️</span>' : '';
+        const borderColor = isActive ? player.color : 'rgba(255,255,255,0.12)';
+        const bgActive = isActive ? `rgba(${UIManager._hexToRgb(player.color)},0.12)` : 'rgba(0,0,0,0.3)';
+        const chevron = _expandedRivalId === String(player.id) ? '▲' : '▼';
 
-        const badges = [
-            isActive                     ? `<span class="turn-badge" style="background:${player.color}">▶ VEZ</span>` : '',
-            player.interdictionTurns > 0 ? `<span class="status-badge interdiction-badge">⛓️</span>` : '',
-            player.canChooseSpace        ? `<span class="status-badge aporte-badge">🚖</span>` : '',
-            player.eliminated            ? `<span class="status-badge interdiction-badge">💀</span>` : ''
-        ].filter(Boolean).join('');
+        // Build deck HTML for expanded detail
+        const deckHtml = UIManager._buildDeckHtml(player);
 
-        const matPct = Math.round((player.maturityLevel / 3) * 100);
+        return `
+        <div class="rival-card" style="border-color:${borderColor};background:${bgActive}">
+            <div class="rival-btn-header" data-pid="${player.id}">
+                <span class="rival-avatar" style="color:${player.color}">${player.icon}</span>
+                <span class="rival-name" style="color:${player.color}">${player.name}</span>
+                ${turnTag}${botTag}${elimTag}${jailTag}
+                <span class="rival-money" style="${player.money < 0 ? 'color:#ff4747' : ''}">$${player.money.toLocaleString('pt-BR')}</span>
+                <span class="rival-props">🏢${propCount}</span>
+                <span class="rival-chevron">${chevron}</span>
+            </div>
+            <div class="rival-detail" data-pid="${player.id}">
+                <div class="rival-detail-row">
+                    <span class="phud-mat-label" style="color:${matColor}">⬤ ${MATURITY_LABELS[player.maturityLevel].split('—')[0].trim()}</span>
+                    <div class="maturity-bar-track-sm" style="flex:1"><div class="maturity-bar-fill-sm" style="width:${Math.round((player.maturityLevel / 3) * 100)}%;background:${matColor}"></div></div>
+                </div>
+                ${deckHtml}
+            </div>
+        </div>`;
+    }
 
-        // Monopólios completos (grupo dot indicators)
-        const completedGroups = [];
-        for (const [group, size] of Object.entries(GROUP_SIZE)) {
-            const owned = player.ownedPropertiesIds.filter(id => BOARD_DATA[id].group === group).length;
-            if (owned >= size) {
-                const sample = BOARD_DATA.find(s => s.group === group);
-                completedGroups.push({ group, color: sample ? sample.color : '#555' });
-            }
-        }
-        const completedHtml = completedGroups.length > 0
-            ? `<div class="phud-groups-inline">${completedGroups.map(g =>
-                `<span class="group-dot" style="background:${g.color}" title="✅ ${g.group}"></span>`
-            ).join('')}</div>` : '';
-
-        // ── Deck de programas agrupados por projeto ─────
+    /** Gera o HTML do deck de programas agrupados de um jogador */
+    static _buildDeckHtml(player) {
         const groupedCards = {};
         player.ownedPropertiesIds.forEach(id => {
             const space = BOARD_DATA[id];
@@ -104,7 +158,6 @@ export class UIManager {
             groupedCards[groupKey].push(space);
         });
 
-        // SESMT avulsos (que não estão em ownedPropertiesIds)
         const sesmtExtras = player.sesmtOwned.filter(k =>
             !player.ownedPropertiesIds.some(id => BOARD_DATA[id].sesmt_key === k)
         );
@@ -116,7 +169,6 @@ export class UIManager {
             });
         }
 
-        let deckHtml = '';
         const groupKeys = Object.keys(groupedCards);
         if (groupKeys.length > 0) {
             const groupsHtml = groupKeys.map(gk => {
@@ -148,11 +200,36 @@ export class UIManager {
                     <div class="project-cards">${cardsHtml}</div>
                 </div>`;
             }).join('');
-            deckHtml = `<div class="phud-deck-grouped">${groupsHtml}</div>`;
-        } else {
-            deckHtml = `<div class="phud-deck-grouped"><span class="phud-deck-empty">Sem programas</span></div>`;
+            return `<div class="phud-deck-grouped">${groupsHtml}</div>`;
+        }
+        return `<div class="phud-deck-grouped"><span class="phud-deck-empty">Sem programas</span></div>`;
+    }
+
+    static _buildCard(player, isActive) {
+        const matColor = MATURITY_COLORS[player.maturityLevel] || '#555';
+        const border   = isActive ? `2px solid ${player.color}` : '1px solid rgba(255,255,255,0.08)';
+        const bg       = isActive ? `rgba(${UIManager._hexToRgb(player.color)},0.1)` : 'rgba(0,0,0,0.25)';
+        const activeClass = isActive ? 'hud-active-glow' : '';
+
+        const badges = [
+            isActive                     ? `<span class="turn-badge" style="background:${player.color}">▶ VEZ</span>` : '',
+            player.interdictionTurns > 0 ? `<span class="status-badge interdiction-badge">⛓️</span>` : '',
+            player.canChooseSpace        ? `<span class="status-badge aporte-badge">🚖</span>` : '',
+            player.eliminated            ? `<span class="status-badge interdiction-badge">💀</span>` : ''
+        ].filter(Boolean).join('');
+
+        const matPct = Math.round((player.maturityLevel / 3) * 100);
+
+        const completedGroups = [];
+        for (const [group, size] of Object.entries(GROUP_SIZE)) {
+            const owned = player.ownedPropertiesIds.filter(id => BOARD_DATA[id].group === group).length;
+            if (owned >= size) {
+                const sample = BOARD_DATA.find(s => s.group === group);
+                completedGroups.push({ group, color: sample ? sample.color : '#555' });
+            }
         }
 
+        const deckHtml = UIManager._buildDeckHtml(player);
         const propCount = player.ownedPropertiesIds.length;
 
         return `
