@@ -17,6 +17,7 @@ const io     = new Server(server, {
         origin: [
             'https://bancosst.web.app',
             'https://bancosst.firebaseapp.com',
+            'https://bancosst-jogo.onrender.com',
             'http://localhost:3000',
             'http://localhost:3002',
         ],
