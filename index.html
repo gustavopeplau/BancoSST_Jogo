@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BANCO SST - Corporate Tour Edition</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/ui.css">
+    <link rel="stylesheet" href="css/board.css">
+    <link rel="stylesheet" href="css/juice.css">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
+    <script>
+        // URL do servidor multiplayer (WebSocket).
+        // Em dev local (node server/index.js), o servidor roda no mesmo origin.
+        // Em produção (Firebase Hosting), aponta para servidor externo (Render).
+        if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            window.BANCOSST_SERVER_URL = 'https://bancosst-server.onrender.com';
+        }
+    </script>
+</head>
+<body>
+
+    <!-- TELA DE ESCOLHA: LOCAL OU ONLINE -->
+    <div id="lobby-screen">
+        <div class="lobby-box" id="lobby-mode-select">
+            <h1>Banco SST</h1>
+            <p class="lobby-subtitle">Corporate Tour Edition</p>
+            <div class="mode-buttons">
+                <button id="btn-mode-local" class="btn-mode">
+                    <span class="mode-icon">🖥️</span>
+                    <span class="mode-label">Jogo Local</span>
+                    <span class="mode-desc">Mesmo computador, 2-4 jogadores</span>
+                </button>
+                <button id="btn-mode-online" class="btn-mode btn-mode-online">
+                    <span class="mode-icon">🌐</span>
+                    <span class="mode-label">Jogo Online</span>
+                    <span class="mode-desc">Cada um no seu dispositivo</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- LOBBY LOCAL (original) -->
+        <div class="lobby-box" id="lobby-local" style="display:none">
+            <h1>Jogo Local</h1>
+            <button id="btn-back-from-local" class="btn-back">&larr; Voltar</button>
+            <h1>Banco SST</h1>
+            <div class="player-count-group">
+                <label for="player-count">Quantidade de Jogadores:</label>
+                <select id="player-count">
+                    <option value="2" selected>2 Jogadores</option>
+                    <option value="3">3 Jogadores</option>
+                    <option value="4">4 Jogadores</option>
+                </select>
+            </div>
+            <div class="input-group" id="player-inputs">
+                <div class="player-row" data-idx="0">
+                    <input type="text" class="player-name-input" placeholder="Jogador 1" value="Corretor de SESMT">
+                    <div class="pawn-selector">
+                        <button type="button" class="pawn-btn selected" data-pawn="capacete" title="Capacete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M6 22h20v3H6z" fill="currentColor"/><path d="M8 22c0-7 3-12 8-12s8 5 8 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="12" r="2" fill="currentColor"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="luva" title="Luva">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M10 28V14l-4-6v-2h2l4 5h0l2-5h2l2 5h0l2-5h2l2 5V28z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="bota" title="Bota">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M11 4v16l-5 4v4h20v-4l-3-2V4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="6" y1="24" x2="26" y2="24" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="colete" title="Colete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M8 6l-4 4v16h8V6zm16 0l4 4v16h-8V6zM12 6v20h8V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="16" y1="6" x2="16" y2="26" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="player-row" data-idx="1">
+                    <input type="text" class="player-name-input" placeholder="Jogador 2" value="Chefe de Planta">
+                    <div class="pawn-selector">
+                        <button type="button" class="pawn-btn" data-pawn="capacete" title="Capacete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M6 22h20v3H6z" fill="currentColor"/><path d="M8 22c0-7 3-12 8-12s8 5 8 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="12" r="2" fill="currentColor"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn selected" data-pawn="luva" title="Luva">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M10 28V14l-4-6v-2h2l4 5h0l2-5h2l2 5h0l2-5h2l2 5V28z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="bota" title="Bota">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M11 4v16l-5 4v4h20v-4l-3-2V4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="6" y1="24" x2="26" y2="24" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="colete" title="Colete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M8 6l-4 4v16h8V6zm16 0l4 4v16h-8V6zM12 6v20h8V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="16" y1="6" x2="16" y2="26" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="player-row" data-idx="2" style="display:none">
+                    <input type="text" class="player-name-input" placeholder="Jogador 3">
+                    <div class="pawn-selector">
+                        <button type="button" class="pawn-btn selected" data-pawn="bota" title="Bota">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M11 4v16l-5 4v4h20v-4l-3-2V4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="6" y1="24" x2="26" y2="24" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="capacete" title="Capacete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M6 22h20v3H6z" fill="currentColor"/><path d="M8 22c0-7 3-12 8-12s8 5 8 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="12" r="2" fill="currentColor"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="luva" title="Luva">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M10 28V14l-4-6v-2h2l4 5h0l2-5h2l2 5h0l2-5h2l2 5V28z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="colete" title="Colete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M8 6l-4 4v16h8V6zm16 0l4 4v16h-8V6zM12 6v20h8V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="16" y1="6" x2="16" y2="26" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="player-row" data-idx="3" style="display:none">
+                    <input type="text" class="player-name-input" placeholder="Jogador 4">
+                    <div class="pawn-selector">
+                        <button type="button" class="pawn-btn selected" data-pawn="colete" title="Colete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M8 6l-4 4v16h8V6zm16 0l4 4v16h-8V6zM12 6v20h8V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="16" y1="6" x2="16" y2="26" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="capacete" title="Capacete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M6 22h20v3H6z" fill="currentColor"/><path d="M8 22c0-7 3-12 8-12s8 5 8 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="12" r="2" fill="currentColor"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="luva" title="Luva">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M10 28V14l-4-6v-2h2l4 5h0l2-5h2l2 5h0l2-5h2l2 5V28z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="bota" title="Bota">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M11 4v16l-5 4v4h20v-4l-3-2V4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="6" y1="24" x2="26" y2="24" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button id="btn-start-game" class="btn-super">Iniciar Construção de Programas 💼</button>
+        </div>
+
+        <!-- LOBBY ONLINE -->
+        <div class="lobby-box" id="lobby-online" style="display:none">
+            <h1>Jogo Online</h1>
+            <button id="btn-back-from-online" class="btn-back">&larr; Voltar</button>
+
+            <!-- Sub-tela: criar ou entrar -->
+            <div id="online-choice">
+                <div class="online-player-config">
+                    <label>👤 Seu nome:</label>
+                    <input type="text" id="online-player-name" class="player-name-input" placeholder="Digite seu nome aqui..." maxlength="20" autocomplete="off">
+                    <label>🎯 Seu peão:</label>
+                    <div class="pawn-selector" id="online-pawn-selector">
+                        <button type="button" class="pawn-btn selected" data-pawn="capacete" title="Capacete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M6 22h20v3H6z" fill="currentColor"/><path d="M8 22c0-7 3-12 8-12s8 5 8 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="12" r="2" fill="currentColor"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="luva" title="Luva">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M10 28V14l-4-6v-2h2l4 5h0l2-5h2l2 5h0l2-5h2l2 5V28z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="bota" title="Bota">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M11 4v16l-5 4v4h20v-4l-3-2V4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="6" y1="24" x2="26" y2="24" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                        <button type="button" class="pawn-btn" data-pawn="colete" title="Colete">
+                            <svg viewBox="0 0 32 32" width="28" height="28"><path d="M8 6l-4 4v16h8V6zm16 0l4 4v16h-8V6zM12 6v20h8V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="16" y1="6" x2="16" y2="26" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="mode-buttons" style="margin-top:20px;">
+                    <button id="btn-create-room" class="btn-mode">
+                        <span class="mode-icon">🏠</span>
+                        <span class="mode-label">Criar Sala</span>
+                        <span class="mode-desc">Você será o host</span>
+                    </button>
+                    <button id="btn-join-room-show" class="btn-mode btn-mode-online">
+                        <span class="mode-icon">🔗</span>
+                        <span class="mode-label">Entrar em Sala</span>
+                        <span class="mode-desc">Digite o código da sala</span>
+                    </button>
+                </div>
+                <div id="join-code-area" style="display:none; margin-top:16px;">
+                    <input type="text" id="input-room-code" class="player-name-input" placeholder="CÓDIGO DA SALA" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-size:1.3rem;font-weight:900">
+                    <button id="btn-join-room" class="btn-super" style="margin-top:10px">Entrar na Sala 🔗</button>
+                </div>
+                <p id="online-error" class="online-error" style="display:none"></p>
+                <p id="online-connecting" class="online-status" style="display:none">Conectando ao servidor...</p>
+            </div>
+
+            <!-- Sub-tela: sala de espera -->
+            <div id="online-room" style="display:none">
+                <div class="room-code-display">
+                    <span class="room-code-label">Código da sala:</span>
+                    <span class="room-code-value" id="room-code-display">------</span>
+                    <button id="btn-copy-code" class="btn-copy" title="Copiar código">📋</button>
+                </div>
+                <div id="room-players-list" class="room-players-list"></div>
+                <p id="room-status" class="room-status">Aguardando jogadores...</p>
+                <button id="btn-start-online" class="btn-super" style="display:none">Iniciar Partida Online 🌐</button>
+                <div id="room-chat" class="room-chat">
+                    <div id="chat-messages" class="chat-messages"></div>
+                    <div class="chat-input-row">
+                        <input type="text" id="chat-input" class="player-name-input" placeholder="Mensagem..." maxlength="200">
+                        <button id="btn-chat-send" class="btn-chat-send">➤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AREA VIRTUAL JOGOS — 3 colunas: HUD Esq | Tabuleiro | HUD Dir -->
+    <div id="game-wrapper">
+
+        <aside id="left-hud" class="dashboard-panel">
+            <div class="panel-header">📋 Jogadores</div>
+            <div id="left-panel" class="player-panel-col"></div>
+        </aside>
+        
+        <main class="board-container">
+            <div id="board"></div>
+        </main>
+
+        <aside id="right-hud" class="dashboard-panel">
+            <div id="audio-controls">
+                <button id="btn-bgm-toggle" class="btn-audio" title="Ligar/Desligar Música">🎵</button>
+                <input type="range" id="slider-music" min="0" max="100" value="12" title="Volume Música">
+                <button id="btn-sfx-toggle" class="btn-audio" title="Ligar/Desligar SFX">🔊</button>
+                <input type="range" id="slider-sfx" min="0" max="100" value="25" title="Volume SFX">
+            </div>
+            <div id="right-panel" class="player-panel-col"></div>
+            <div id="roll-area">
+                <h1 id="dice-result" style="text-align: center;"></h1>
+                <button id="btn-roll" class="btn-super">Rolar e Andar 🎲🎲</button>
+            </div>
+            <!-- Chat in-game (visível apenas online) -->
+            <div id="game-chat" class="room-chat" style="display:none">
+                <div class="panel-header">💬 Chat</div>
+                <div id="game-chat-messages" class="chat-messages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="game-chat-input" class="player-name-input" placeholder="Mensagem..." maxlength="200">
+                    <button id="btn-game-chat-send" class="btn-chat-send">➤</button>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+     <!-- Esse Modals Ja Eraa O seu Arquio Da Fase passada Não precisara Toca ! :) -->
+    <div id="modal-overlay"><div class="modal-box"><h2 id="modal-title">...</h2><div id="modal-text">...</div><div id="modal-actions"></div></div></div>
+    
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
