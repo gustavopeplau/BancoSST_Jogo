@@ -88,6 +88,7 @@ class RoomManager {
                 color: p.color,
                 connected: p.connected,
                 isHost: p.socketId === room.hostSocketId,
+                isBot: p.isBot || false,
             })),
         };
     }

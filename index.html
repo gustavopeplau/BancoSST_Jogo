@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BANCO SST - Corporate Tour Edition</title>
+    <title>BANCO SST - Jogo de Saúde e Segurança do Trabalho</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/ui.css">
     <link rel="stylesheet" href="css/board.css">
@@ -24,7 +24,8 @@
     <div id="lobby-screen">
         <div class="lobby-box" id="lobby-mode-select">
             <h1>Banco SST</h1>
-            <p class="lobby-subtitle">Corporate Tour Edition</p>
+            <p class="lobby-intro">🏗️ Prepare-se para uma jornada estratégica pelo universo da <strong>Saúde e Segurança do Trabalho</strong>! Monte seus programas de SST, contrate profissionais do SESMT, enfrente fiscalizações, auditorias e acidentes — e prove que sua empresa é referência em cultura de prevenção. Conhecimento, estratégia e um pouco de sorte vão definir quem conquista a maturidade em SST primeiro. Aceita o desafio?</p>
+            <button id="btn-show-rules" class="btn-rules">📖 Regras do Jogo</button>
             <div class="mode-buttons">
                 <button id="btn-mode-local" class="btn-mode">
                     <span class="mode-icon">🖥️</span>
@@ -231,6 +232,14 @@
 
      <!-- Esse Modals Ja Eraa O seu Arquio Da Fase passada Não precisara Toca ! :) -->
     <div id="modal-overlay"><div class="modal-box"><h2 id="modal-title">...</h2><div id="modal-text">...</div><div id="modal-actions"></div></div></div>
+
+    <!-- Modal de Regras do Jogo -->
+    <div id="rules-overlay" class="rules-overlay" style="display:none">
+        <div class="rules-box">
+            <button id="btn-close-rules" class="btn-close-rules">&times;</button>
+            <div id="rules-content" class="rules-content"></div>
+        </div>
+    </div>
     
     <script type="module" src="js/main.js"></script>
 </body>

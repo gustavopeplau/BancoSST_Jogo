@@ -2,6 +2,7 @@ import { BOARD_DATA } from '../data/boardData.js';
 import { sleep } from '../utils/helpers.js';
 import { JuiceFX } from '../utils/JuiceFX.js';
 import { SoundManager } from '../utils/SoundManager.js';
+import { isBotAutoSelectActive } from '../models/BotManager.js';
 
 // Rastreia a casa ativa de cada jogador para destaque visual
 let _activeSpaceId = null;
@@ -299,6 +300,14 @@ export function enableBoardSpaceSelection(eligibleIds) {
             el.addEventListener('click', handler);
             handlers.push({ el, handler });
         });
+
+        // Bot auto-select: clica automaticamente no primeiro tile elegível
+        if (isBotAutoSelectActive() && eligibleIds.length > 0) {
+            setTimeout(() => {
+                const el = document.getElementById(`space-${eligibleIds[0]}`);
+                if (el) el.click();
+            }, 800);
+        }
     });
 }
 

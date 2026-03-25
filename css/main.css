@@ -113,6 +113,55 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
     letter-spacing: 3px; text-transform: uppercase;
 }
 
+.lobby-intro {
+    font-size: 0.92rem; line-height: 1.6; color: rgba(255,255,255,0.75);
+    margin-top: -8px; margin-bottom: 20px; text-align: center; padding: 0 8px;
+}
+.lobby-intro strong { color: #8ae37f; }
+
+.btn-rules {
+    background: none; border: 1px solid rgba(64,162,255,0.4); color: #40a2ff;
+    padding: 8px 20px; border-radius: 10px; cursor: pointer; font-size: 0.9rem;
+    font-weight: 700; margin-bottom: 18px; transition: all 0.2s; letter-spacing: 0.5px;
+}
+.btn-rules:hover {
+    background: rgba(64,162,255,0.12); border-color: #40a2ff;
+    box-shadow: 0 0 14px rgba(64,162,255,0.25); transform: translateY(-1px);
+}
+
+/* ── Modal de Regras ── */
+.rules-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+}
+.rules-box {
+    background: linear-gradient(135deg, #1b2938 0%, #111a24 100%);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+    width: 90vw; max-width: 800px; max-height: 85vh; position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7); display: flex; flex-direction: column;
+}
+.btn-close-rules {
+    position: absolute; top: 12px; right: 16px; background: none; border: none;
+    color: #ff5252; font-size: 2rem; cursor: pointer; z-index: 10;
+    line-height: 1; transition: transform 0.2s;
+}
+.btn-close-rules:hover { transform: scale(1.2); }
+.rules-content {
+    padding: 32px 28px 24px; overflow-y: auto; color: rgba(255,255,255,0.88);
+    font-size: 0.9rem; line-height: 1.7;
+}
+.rules-content h1 { font-size: 1.5rem; color: #40a2ff; margin-bottom: 12px; }
+.rules-content h2 { font-size: 1.2rem; color: #8ae37f; margin-top: 20px; margin-bottom: 8px; }
+.rules-content h3 { font-size: 1.05rem; color: #f1dd38; margin-top: 14px; margin-bottom: 6px; }
+.rules-content table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.82rem; }
+.rules-content th { background: rgba(64,162,255,0.15); color: #40a2ff; padding: 6px 8px; text-align: left; }
+.rules-content td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.rules-content blockquote { border-left: 3px solid #40a2ff; padding-left: 12px; margin: 10px 0; opacity: 0.8; }
+.rules-content code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85rem; }
+.rules-content hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 16px 0; }
+.rules-content strong { color: #fff; }
+
 .mode-buttons {
     display: flex; gap: 14px; margin-top: 10px;
 }
@@ -370,6 +419,10 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
     .lobby-box { padding: 20px 16px; border-radius: 14px; }
     .lobby-box h1 { font-size: 1.6rem; margin-bottom: 12px; }
     .lobby-subtitle { font-size: 0.8rem; margin-bottom: 16px; }
+    .lobby-intro { font-size: 0.82rem; line-height: 1.5; margin-bottom: 14px; }
+    .btn-rules { font-size: 0.8rem; padding: 6px 14px; margin-bottom: 12px; }
+    .rules-box { width: 96vw; max-height: 80vh; }
+    .rules-content { padding: 20px 16px; font-size: 0.82rem; }
     .mode-buttons { flex-direction: column; gap: 10px; }
     .btn-mode { padding: 14px 12px; }
     .mode-icon { font-size: 1.6rem; }

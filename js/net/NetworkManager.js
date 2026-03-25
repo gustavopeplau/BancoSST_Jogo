@@ -89,6 +89,10 @@ class _NetworkManager {
                 globalBus.emit('net:playerLeft', data);
             });
 
+            this.socket.on('game:playerBecameBot', (data) => {
+                globalBus.emit('net:playerBecameBot', data);
+            });
+
             // ── Listeners de jogo ──
             this.socket.on('game:start', (data) => {
                 globalBus.emit('net:gameStart', data);
@@ -220,6 +224,16 @@ class _NetworkManager {
     sendChat(text) {
         if (!this.socket || !this.isOnline) return;
         this.socket.emit('chat:message', { text });
+    }
+
+    /** Notifica o servidor que o jogador está saindo intencionalmente */
+    sendPlayerLeave() {
+        return new Promise((resolve) => {
+            if (!this.socket || !this.isOnline) { resolve({ ok: false }); return; }
+            this.socket.emit('game:playerLeave', {}, (response) => {
+                resolve(response || { ok: true });
+            });
+        });
     }
 
     // ═══════════════════════════════════════════════════════════

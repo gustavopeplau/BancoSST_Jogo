@@ -34,6 +34,9 @@ export class Player {
 
         // Eliminação por falência
         this.eliminated = false;
+
+        // Bot (substituto quando jogador sai)
+        this.isBot = false;
     }
 
     // Move o peão e credita $500 ao cruzar o INÍCIO
@@ -71,6 +74,7 @@ export class Player {
             maturityLevel:   this.maturityLevel,
             monopoliesCount: this.monopoliesCount,
             eliminated:      this.eliminated,
+            isBot:           this.isBot,
         };
     }
 
@@ -87,6 +91,7 @@ export class Player {
         p.maturityLevel            = data.maturityLevel || 0;
         p.monopoliesCount          = data.monopoliesCount || 0;
         p.eliminated               = data.eliminated || false;
+        p.isBot                    = data.isBot || false;
         return p;
     }
 }

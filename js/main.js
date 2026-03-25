@@ -7,6 +7,7 @@ import { GameEvents } from './models/ActionTypes.js';
 import { NetworkManager } from './net/NetworkManager.js';
 import { JuiceFX } from './utils/JuiceFX.js';
 import { BOARD_DATA } from './data/boardData.js';
+import { BotManager } from './models/BotManager.js';
 
 window.SST_GLOBAL_GAME = null;
 window.SST_EVENT_BUS   = globalBus;
@@ -104,6 +105,30 @@ function hideLobbyAndBootRules(playerConfigs, onlineMode = false) {
             // Jogador ativo executa localmente — vê animações, modais, etc.
             SST_GLOBAL_GAME.handleTurnRoll(btnRoll, diceResultEl);
         };
+
+        // ── ALERTA ao sair/atualizar a página ──
+        window._sstOnlineActive = true;
+        window.addEventListener('beforeunload', (e) => {
+            if (window._sstOnlineActive && NetworkManager.isOnline) {
+                e.preventDefault();
+                e.returnValue = 'Você está em uma partida online. Se sair, um bot assumirá seu lugar e você não poderá voltar. Deseja realmente sair?';
+                return e.returnValue;
+            }
+        });
+
+        // Quando o jogador confirma a saída, o beforeunload já disparou.
+        // Usamos o evento 'unload' para enviar o leave ao servidor via beacon.
+        window.addEventListener('unload', () => {
+            if (window._sstOnlineActive && NetworkManager.isOnline && NetworkManager.socket) {
+                // Usa sendBeacon como fallback para garantir que a mensagem chegue
+                const url = (window.BANCOSST_SERVER_URL || window.location.origin) + '/api/player-leave';
+                const data = JSON.stringify({
+                    roomCode: NetworkManager.roomCode,
+                    socketId: NetworkManager.socket.id,
+                });
+                navigator.sendBeacon(url, new Blob([data], { type: 'application/json' }));
+            }
+        });
 
         setupOnlineGameSync(btnRoll, diceResultEl);
     } else {
@@ -380,6 +405,77 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
     globalBus.on('net:reconnected', () => {
         updateRollButton();
     });
+
+    // ══════════════════════════════════════════════════════
+    // BOT: jogador saiu e bot assumiu seu lugar
+    // ══════════════════════════════════════════════════════
+
+    globalBus.on('net:playerBecameBot', (data) => {
+        const { playerIndex, playerName } = data;
+        addChatMessage('Sistema', '#ff9800', `🤖 ${playerName} saiu do jogo. Um bot assumiu o controle.`);
+
+        // Marca jogador como bot no estado local
+        if (game.players[playerIndex]) {
+            game.players[playerIndex].isBot = true;
+            game.players[playerIndex].name = `🤖 ${game.players[playerIndex].name}`;
+            game.updateUI();
+        }
+
+        // Se agora é a vez do bot, executa o turno do bot
+        if (game.currentPlayerIndex === playerIndex && !game.isAnimating) {
+            executeBotTurnIfNeeded(btnRoll, diceResultEl);
+        }
+    });
+
+    // Quando o turno muda, verifica se o próximo jogador é um bot
+    globalBus.on(GameEvents.TURN_ENDED, () => {
+        setTimeout(() => executeBotTurnIfNeeded(btnRoll, diceResultEl), 500);
+    });
+}
+
+/**
+ * Se o jogador atual é um bot e este cliente é o próximo jogador humano conectado,
+ * executa o turno do bot automaticamente.
+ */
+async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
+    const game = SST_GLOBAL_GAME;
+    if (!game || game.gameOver || game.isAnimating) return;
+
+    const currentPlayer = game.getCurrentPlayer();
+    if (!currentPlayer || !currentPlayer.isBot) return;
+
+    // Determina quem deve executar o turno do bot:
+    // O próximo jogador humano conectado (cyclic) executa.
+    const myIndex = NetworkManager.playerId;
+    const total = game.players.length;
+    let executorIndex = -1;
+    for (let i = 1; i <= total; i++) {
+        const idx = (game.currentPlayerIndex + i) % total;
+        const p = game.players[idx];
+        if (!p.eliminated && !p.isBot) {
+            executorIndex = idx;
+            break;
+        }
+    }
+
+    // Só executa se EU sou o executor designado
+    if (executorIndex !== myIndex) return;
+
+    console.log(`[BOT] Executando turno de ${currentPlayer.name} (bot) — executor: jogador ${myIndex}`);
+    addChatMessage('Sistema', '#ff9800', `🤖 ${currentPlayer.name} está jogando automaticamente...`);
+
+    // Ativa auto-resposta do ModalManager e auto-select de tiles
+    const cleanup = BotManager.enableAutoRespond(ModalManager);
+    BotManager.activateAutoSelect();
+
+    // Executa o turno do bot (mesma lógica de handleTurnRoll)
+    await game.handleTurnRoll(btnRoll, diceResultEl);
+
+    // Limpa patches
+    cleanup();
+
+    // Verifica se o próximo jogador também é bot (encadeamento)
+    setTimeout(() => executeBotTurnIfNeeded(btnRoll, diceResultEl), 1000);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -559,6 +655,74 @@ function setupAudioControls() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════
+// BOTÃO DE REGRAS — carrega e exibe REGRAS_DO_JOGO.md
+// ═══════════════════════════════════════════════════════════
+
+function setupRulesButton() {
+    const btnRules = document.getElementById('btn-show-rules');
+    const overlay = document.getElementById('rules-overlay');
+    const content = document.getElementById('rules-content');
+    const btnClose = document.getElementById('btn-close-rules');
+
+    if (!btnRules || !overlay) return;
+
+    btnRules.addEventListener('click', async () => {
+        if (!content.dataset.loaded) {
+            try {
+                const resp = await fetch('REGRAS_DO_JOGO.md');
+                const md = await resp.text();
+                content.innerHTML = renderMarkdown(md);
+                content.dataset.loaded = '1';
+            } catch (e) {
+                content.innerHTML = '<p style="color:#ff5252">Erro ao carregar as regras.</p>';
+            }
+        }
+        overlay.style.display = 'flex';
+    });
+
+    btnClose.addEventListener('click', () => { overlay.style.display = 'none'; });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.style.display = 'none'; });
+}
+
+/** Converte Markdown básico para HTML (headings, tables, bold, italic, blockquotes, hr, links) */
+function renderMarkdown(md) {
+    let html = md
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+        .replace(/^---$/gm, '<hr>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+    // Tables
+    const lines = html.split('\n');
+    let out = '', inTable = false;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const cells = line.split('|').filter(c => c.trim() !== '');
+            // Skip separator row (|---|---|)
+            if (cells.every(c => /^[\s:-]+$/.test(c))) continue;
+            if (!inTable) { out += '<table>'; inTable = true; }
+            const isHeader = i + 1 < lines.length && /^\|[\s|:-]+\|$/.test(lines[i + 1].trim());
+            const tag = isHeader ? 'th' : 'td';
+            out += '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+        } else {
+            if (inTable) { out += '</table>'; inTable = false; }
+            if (line === '') { out += '<br>'; }
+            else if (!line.startsWith('<')) { out += `<p>${line}</p>`; }
+            else { out += line; }
+        }
+    }
+    if (inTable) out += '</table>';
+    return out;
+}
+
 function setupLobby() {
     const countSelect = document.getElementById('player-count');
     const rows = document.querySelectorAll('.player-row');
@@ -588,6 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupLobby();
     setupAudioControls();
     setupOnlinePawnSelector();
+    setupRulesButton();
 
     // ═══════════════════════════════════════════════════════
     // NAVEGAÇÃO ENTRE PAINÉIS DO LOBBY

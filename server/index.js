@@ -29,6 +29,28 @@ const io     = new Server(server, {
 
 // Serve arquivos estáticos (index.html, css/, js/)
 app.use(express.static(path.join(__dirname, '..')));
+app.use(express.json());
+
+// API endpoint para sendBeacon (fallback quando jogador fecha aba)
+app.post('/api/player-leave', (req, res) => {
+    const { roomCode, socketId } = req.body || {};
+    if (!roomCode || !socketId) { res.status(400).end(); return; }
+    const room = rooms.getRoom(roomCode);
+    if (!room || !room.started) { res.status(404).end(); return; }
+    const player = room.players.find(p => p.socketId === socketId);
+    if (player && !player.isBot) {
+        player.isBot = true;
+        player.connected = false;
+        const playerIndex = room.players.indexOf(player);
+        console.log(`[BOT] ${player.name} saiu via beacon, bot assumiu (sala ${roomCode})`);
+        io.to(roomCode).emit('game:playerBecameBot', {
+            playerIndex,
+            playerName: player.name,
+            room: rooms.getRoomPublicState(roomCode),
+        });
+    }
+    res.status(200).end();
+});
 
 const rooms = new RoomManager();
 
@@ -176,6 +198,32 @@ io.on('connection', (socket) => {
         });
     });
 
+    // ── SAÍDA INTENCIONAL (jogador clicou "sair") → bot assume ──
+    socket.on('game:playerLeave', (_, ack) => {
+        const room = rooms.getRoomBySocket(socket.id);
+        if (!room || !room.started) { if (ack) ack({ ok: false }); return; }
+        const playerIndex = room.players.findIndex(p => p.socketId === socket.id);
+        if (playerIndex === -1) { if (ack) ack({ ok: false }); return; }
+
+        const player = room.players[playerIndex];
+        player.isBot = true;
+        player.connected = false;
+        console.log(`[BOT] ${player.name} saiu intencionalmente, bot assumiu (sala ${room.code})`);
+
+        // Notifica todos na sala
+        io.to(room.code).emit('game:playerBecameBot', {
+            playerIndex,
+            playerName: player.name,
+            room: rooms.getRoomPublicState(room.code),
+        });
+
+        if (ack) ack({ ok: true });
+
+        // Remove socket da sala
+        socket.leave(room.code);
+        rooms._socketToRoom.delete(socket.id);
+    });
+
     // ── DESCONEXÃO ──────────────────────────────────────
     socket.on('disconnect', () => {
         console.log(`[-] Desconectado: ${socket.id}`);
@@ -194,7 +242,23 @@ io.on('connection', (socket) => {
                 room: rooms.getRoomPublicState(room.code),
             });
 
-            // Timeout de 60s para reconexão
+            // Se o jogo já iniciou, após 15s sem reconexão, bot assume
+            if (room.started && !player.isBot) {
+                setTimeout(() => {
+                    if (!player.connected && !player.isBot) {
+                        player.isBot = true;
+                        const playerIndex = room.players.indexOf(player);
+                        console.log(`[BOT] ${player.name} não reconectou em 15s, bot assumiu (sala ${room.code})`);
+                        io.to(room.code).emit('game:playerBecameBot', {
+                            playerIndex,
+                            playerName: player.name,
+                            room: rooms.getRoomPublicState(room.code),
+                        });
+                    }
+                }, 15000);
+            }
+
+            // Timeout de 60s para limpeza total
             setTimeout(() => {
                 if (!player.connected) {
                     rooms.removePlayer(room.code, socket.id);

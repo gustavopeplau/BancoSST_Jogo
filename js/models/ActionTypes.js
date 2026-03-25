@@ -105,4 +105,7 @@ export const GameEvents = {
     // Modais (broadcast para espectadores)
     MODAL_SHOW:          'modal:show',
     MODAL_CLOSED:        'modal:closed',
+
+    // Bot (jogador saiu e bot assumiu)
+    PLAYER_BECAME_BOT:   'player:becameBot',
 };

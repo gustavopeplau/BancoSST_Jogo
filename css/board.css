@@ -73,8 +73,8 @@
 #space-30 .corner-text { transform: rotate(315deg);}
 
 /* LOGO NO MEIO DA QUADRA (CENTRAL) */
-#center-logo { grid-column: 2 / 11; grid-row: 2 / 11; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
-.banco-logo { font-size: 3rem; color: #40a2ff; text-transform: uppercase; transform: rotate(-45deg); font-weight: 900; letter-spacing: 5px; opacity: 0.5;}
+#center-logo { grid-column: 2 / 11; grid-row: 2 / 11; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background-color: #E3DD8B; border-radius: 4px; }
+.banco-logo { font-size: 3rem; color: #0a0a0a; text-transform: uppercase; transform: rotate(-45deg); font-weight: 900; letter-spacing: 5px; opacity: 0.5;}
 
 /* ── Animação de dados 3D no tabuleiro ─────────────── */
 #dice-anim-overlay {
