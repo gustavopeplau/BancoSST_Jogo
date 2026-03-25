@@ -683,6 +683,16 @@ function setupRulesButton() {
 
     btnClose.addEventListener('click', () => { overlay.style.display = 'none'; });
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.style.display = 'none'; });
+
+    // Links do sumário: scroll suave dentro do container de regras
+    content.addEventListener('click', (e) => {
+        const anchor = e.target.closest('.rules-anchor');
+        if (!anchor) return;
+        e.preventDefault();
+        const targetId = anchor.dataset.target;
+        const el = content.querySelector(`#${CSS.escape(targetId)}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 }
 
 /** Converte Markdown básico para HTML (headings, tables, bold, italic, blockquotes, hr, links) */
@@ -690,14 +700,27 @@ function renderMarkdown(md) {
     let html = md
         .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
         .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^## (.+)$/gm, (_, title) => {
+            // Gera ID compatível com GitHub-flavored markdown anchors
+            const id = title.toLowerCase()
+                .replace(/[^\p{L}\p{N} -]/gu, '') // remove emojis e símbolos
+                .trim()
+                .replace(/\s+/g, '-');
+            return `<h2 id="${id}">${title}</h2>`;
+        })
         .replace(/^# (.+)$/gm, '<h1>$1</h1>')
         .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
         .replace(/^---$/gm, '<hr>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`(.+?)`/g, '<code>$1</code>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => {
+            if (href.startsWith('#')) {
+                const rawId = href.slice(1).replace(/^-+/, '');
+                return `<a href="javascript:void(0)" class="rules-anchor" data-target="${rawId}">${text}</a>`;
+            }
+            return `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
+        });
 
     // Tables
     const lines = html.split('\n');

@@ -129,6 +129,11 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
     box-shadow: 0 0 14px rgba(64,162,255,0.25); transform: translateY(-1px);
 }
 
+.lobby-credit {
+    font-size: 0.75rem; opacity: 0.35; margin-top: 18px; letter-spacing: 0.5px;
+}
+.lobby-credit strong { opacity: 1; color: #40a2ff; }
+
 /* ── Modal de Regras ── */
 .rules-overlay {
     position: fixed; inset: 0; z-index: 9999;
@@ -161,6 +166,8 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
 .rules-content code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85rem; }
 .rules-content hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 16px 0; }
 .rules-content strong { color: #fff; }
+.rules-content a { color: #40a2ff; text-decoration: none; cursor: pointer; }
+.rules-content a:hover { text-decoration: underline; }
 
 .mode-buttons {
     display: flex; gap: 14px; margin-top: 10px;
