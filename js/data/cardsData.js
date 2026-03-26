@@ -220,7 +220,7 @@ export const DECK_SST = [
 
     // ==============================
     // QUIZ (48 cartas educativas)
-    // acerto: +$200 | erro/timeout: -$100 | tempo: 20 segundos
+    // acerto: +$200 | erro/timeout: -$100 | tempo: 40 segundos
     // ==============================
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -232,19 +232,19 @@ export const DECK_SST = [
             'Comissão Integrada de Políticas de Ação',
             'Conselho Interno de Proteção Ativa'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'O PGR (Programa de Gerenciamento de Riscos) substitui qual documento?',
         opcoes: ['PCMSO', 'LTCAT', 'PPRA', 'PCMAT', 'AET'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual NR regulamenta o uso de Equipamentos de Proteção Individual (EPI)?',
         opcoes: ['NR-5', 'NR-7', 'NR-6', 'NR-9', 'NR-12'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -256,13 +256,13 @@ export const DECK_SST = [
             'Setor de Segurança, Medicina e Treinamento',
             'Serviço Estadual de Saúde e Medicina do Trabalho'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual é o prazo máximo para emissão da CAT (Comunicação de Acidente de Trabalho)?',
         opcoes: ['24 horas', '48 horas', '72 horas', 'No mesmo dia', '5 dias úteis'],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -274,7 +274,7 @@ export const DECK_SST = [
             'Fisioterapeuta Ocupacional',
             'Enfermeiro do Trabalho'
         ],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -286,31 +286,31 @@ export const DECK_SST = [
             'Os riscos de incêndio no ambiente fabril',
             'As condições de higiene dos refeitórios'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual NR regulamenta o trabalho em espaços confinados?',
         opcoes: ['NR-10', 'NR-18', 'NR-33', 'NR-35', 'NR-12'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'A Avaliação Ergonômica Preliminar (AEP) faz parte de qual conjunto de documentos?',
         opcoes: ['PGR', 'PCMSO', 'CIPA', 'LTCAT', 'PCE'],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'No contexto da NR-35, trabalho em altura é todo aquele realizado acima de:',
         opcoes: ['1,0 metro', '1,5 metros', '1,8 metros', '2,0 metros', '2,5 metros'],
-        resposta: 3, tempo: 20, acerto: 200, erro: -100
+        resposta: 3, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'O GRO (Gerenciamento de Riscos Ocupacionais) é composto por quais documentos principais?',
         opcoes: ['PCMSO e LTCAT', 'PGR e PCMSO', 'PGR e Inventário de Riscos', 'CIPA e PPRA', 'AET e PCE'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -322,13 +322,13 @@ export const DECK_SST = [
             'Ministrar treinamento anual aos entrantes',
             'Verificar os EPIs antes de cada turno'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'A PAIR (Perda Auditiva Induzida por Ruído) é investigada e documentada em qual programa?',
         opcoes: ['PGR', 'LTCAT', 'PCA', 'PCMSO', 'AET'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -340,13 +340,13 @@ export const DECK_SST = [
             'Método de avaliação ergonômica de postos de trabalho',
             'Programa de gestão de resíduos perigosos'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Segundo a NR-5, qual é o mandato dos membros eleitos da CIPA?',
         opcoes: ['6 meses', '1 ano', '2 anos', '3 anos', 'Indeterminado'],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -358,7 +358,7 @@ export const DECK_SST = [
             'Inventário de agentes químicos e mapa de rotas de fiscalização',
             'Resultados dos exames periódicos do PCMSO'
         ],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     // ── NOVAS CARTAS QUIZ (32 adicionais) ─────────────────────
     {
@@ -371,7 +371,7 @@ export const DECK_SST = [
             'Fundo de auxílio a trabalhadores acidentados',
             'Programa de fiscalização do MTE'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -383,13 +383,13 @@ export const DECK_SST = [
             'Grau de Higienização Estrutural',
             'Grupo de Habilitação Ergonômica'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual NR regulamenta segurança em instalações elétricas?',
         opcoes: ['NR-6', 'NR-10', 'NR-12', 'NR-15', 'NR-33'],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -401,7 +401,7 @@ export const DECK_SST = [
             'Programa de reabilitação de acidentados',
             'Inventário de máquinas conforme NR-12'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -413,13 +413,13 @@ export const DECK_SST = [
             '5%, 10% ou 20%',
             '15%, 25% ou 35%'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual é o percentual do Adicional de Periculosidade?',
         opcoes: ['10%', '20%', '25%', '30%', '40%'],
-        resposta: 3, tempo: 20, acerto: 200, erro: -100
+        resposta: 3, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -431,13 +431,13 @@ export const DECK_SST = [
             'Certificado de treinamento em NR-6',
             'Laudo de insalubridade emitido pelo engenheiro'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual agente é considerado risco físico no ambiente de trabalho?',
         opcoes: ['Poeira de sílica', 'Ruído', 'Vírus', 'Solvente orgânico', 'Postura inadequada'],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -449,7 +449,7 @@ export const DECK_SST = [
             'Ranking de gravidade de NRs descumpridas',
             'Ordem de atendimento do SAMU em acidentes'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -461,13 +461,13 @@ export const DECK_SST = [
             'Autorização para manuseio de produtos químicos',
             'Cadastro de trabalhadores em área de risco'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual tipo de extintor é indicado para incêndios de Classe C (equipamentos elétricos)?',
         opcoes: ['Água', 'Espuma', 'CO₂ (Gás Carbônico)', 'Pó químico ABC', 'CO₂ ou Pó químico'],
-        resposta: 4, tempo: 20, acerto: 200, erro: -100
+        resposta: 4, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -479,19 +479,19 @@ export const DECK_SST = [
             'Programa de readaptação profissional',
             'Projeto de renovação predial'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'O limite de tolerância para ruído contínuo em 8 horas de trabalho é de:',
         opcoes: ['75 dB(A)', '80 dB(A)', '85 dB(A)', '90 dB(A)', '95 dB(A)'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual NR trata das condições de trabalho na indústria da construção?',
         opcoes: ['NR-11', 'NR-12', 'NR-15', 'NR-18', 'NR-22'],
-        resposta: 3, tempo: 20, acerto: 200, erro: -100
+        resposta: 3, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -503,7 +503,7 @@ export const DECK_SST = [
             'Protocolo de atendimento de primeiros socorros',
             'Método de avaliação de ruído ocupacional'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -515,13 +515,13 @@ export const DECK_SST = [
             'Ruído e vibração acima dos limites de tolerância',
             'Radiações ionizantes e não ionizantes'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual documento registra a investigação de acidente de trabalho?',
         opcoes: ['ASO', 'CAT', 'Relatório de Investigação de Acidente', 'PPRA', 'Ordem de Serviço'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -533,7 +533,7 @@ export const DECK_SST = [
             'Materiais para limpeza do ambiente',
             'Sistemas de monitoramento por câmera'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -545,19 +545,19 @@ export const DECK_SST = [
             'Roteiro de auditoria técnica',
             'Regulamento de atividades terceirizadas'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual a periodicidade mínima da SIPAT conforme a NR-5?',
         opcoes: ['Mensal', 'Trimestral', 'Semestral', 'Anual', 'Bienal'],
-        resposta: 3, tempo: 20, acerto: 200, erro: -100
+        resposta: 3, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'O DDS (Diálogo Diário de Segurança) deve durar idealmente:',
         opcoes: ['1 a 5 minutos', '5 a 15 minutos', '15 a 30 minutos', '30 a 60 minutos', 'Não há limite'],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -569,13 +569,13 @@ export const DECK_SST = [
             'Formulário de Identificação do Sistema de Proteção de Qualidade',
             'Ficha Interna de Saúde e Prevenção Quinzenal'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'O mapa de riscos da empresa é elaborado por qual órgão?',
         opcoes: ['SESMT', 'CIPA', 'RH', 'Engenharia', 'Diretoria'],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -587,7 +587,7 @@ export const DECK_SST = [
             'Acidente de trabalho atípico',
             'Incidente de percurso'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -599,7 +599,7 @@ export const DECK_SST = [
             'Obrigatoriedade de ginástica laboral em todas as empresas',
             'Realização de exames toxicológicos mensais'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -611,7 +611,7 @@ export const DECK_SST = [
             'Controlar a jornada de trabalho dos funcionários',
             'Avaliar a rentabilidade do setor produtivo'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -623,13 +623,13 @@ export const DECK_SST = [
             'Risco físico',
             'Risco de acidentes/mecânico'
         ],
-        resposta: 0, tempo: 20, acerto: 200, erro: -100
+        resposta: 0, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual a cor que representa risco BIOLÓGICO no mapa de riscos?',
         opcoes: ['Verde', 'Vermelho', 'Marrom', 'Amarelo', 'Azul'],
-        resposta: 2, tempo: 20, acerto: 200, erro: -100
+        resposta: 2, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -641,7 +641,7 @@ export const DECK_SST = [
             'Instalações elétricas',
             'Movimentação de cargas'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -653,7 +653,7 @@ export const DECK_SST = [
             'Cadastro de trabalhadores expostos a insalubridade',
             'Inventário de máquinas do setor produtivo'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
@@ -665,13 +665,13 @@ export const DECK_SST = [
             'Enfermeiro do Trabalho',
             'Qualquer membro do SESMT'
         ],
-        resposta: 1, tempo: 20, acerto: 200, erro: -100
+        resposta: 1, tempo: 40, acerto: 200, erro: -100
     },
     {
         type: 'quiz', title: 'Quiz SST!', icon: '🎓',
         pergunta: 'Qual a cor que representa risco de ACIDENTES/MECÂNICO no mapa de riscos?',
         opcoes: ['Verde', 'Vermelho', 'Marrom', 'Amarelo', 'Azul'],
-        resposta: 3, tempo: 20, acerto: 200, erro: -100
+        resposta: 3, tempo: 40, acerto: 200, erro: -100
     }
 ];
 

@@ -124,7 +124,7 @@ export class ModalManager {
                 this.closeModal();
                 resolve(acertou);
             };
-            const total = card.tempo || 20;
+            const total = card.tempo || 40;
             let remaining = total;
 
             // Embaralha opções mantendo rastreamento da resposta correta

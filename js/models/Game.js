@@ -615,7 +615,7 @@ export class GameEngine {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // QUIZ (pergunta de múltipla escolha com timer de 20s)
+    // QUIZ (pergunta de múltipla escolha com timer de 40s)
     // ═══════════════════════════════════════════════════════════
     async handleQuiz(player, card) {
         this.bus.emit(GameEvents.QUIZ_STARTED, { playerId: player.id });

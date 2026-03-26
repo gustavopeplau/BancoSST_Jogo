@@ -274,14 +274,14 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
 
     ModalManager._open = function(title, html) {
         _originalOpen(title, html);
-        if (!_isReceivingRemoteData && NetworkManager.isMyTurn(game.currentPlayerIndex)) {
+        if (!_isReceivingRemoteData && (NetworkManager.isMyTurn(game.currentPlayerIndex) || _botRunning)) {
             NetworkManager.sendGameEvent({ event: GameEvents.MODAL_SHOW, data: { title, html } });
         }
     };
 
     ModalManager.closeModal = function() {
         _originalClose();
-        if (!_isReceivingRemoteData && NetworkManager.isMyTurn(game.currentPlayerIndex)) {
+        if (!_isReceivingRemoteData && (NetworkManager.isMyTurn(game.currentPlayerIndex) || _botRunning)) {
             NetworkManager.sendGameEvent({ event: GameEvents.MODAL_CLOSED, data: {} });
         }
     };
@@ -345,6 +345,8 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         GameEvents.SIPAT_ACTIVATED,
         GameEvents.PROPERTY_SOLD,
         GameEvents.TURN_ENDED,
+        GameEvents.QUIZ_STARTED,
+        GameEvents.QUIZ_ANSWERED,
     ];
 
     VISUAL_EVENTS.forEach(evt => {
@@ -449,18 +451,29 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         }
 
         // Dispara bot se é a vez dele (com retry caso isAnimating)
-        retryBotExecution(btnRoll, diceResultEl, 15);
+        retryBotExecution(btnRoll, diceResultEl, 30);
     });
 
     // Quando o turno muda, verifica se o próximo jogador é um bot
     globalBus.on(GameEvents.TURN_ENDED, () => {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 10), 800);
+        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 800);
     });
 
     // Quando rola dupla (não emite TURN_ENDED), o bot precisa rolar de novo
     globalBus.on(GameEvents.DICE_DOUBLE, () => {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 10), 1200);
+        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 1200);
     });
+
+    // Fallback persistente: verifica a cada 3s se há bot parado esperando
+    setInterval(() => {
+        if (!game.gameOver && !_botRunning && !game.isAnimating) {
+            const cur = game.getCurrentPlayer();
+            if (cur && cur.isBot) {
+                console.log('[BOT] Fallback: detectou bot parado, disparando execução.');
+                retryBotExecution(btnRoll, diceResultEl, 30);
+            }
+        }
+    }, 3000);
 }
 
 // Evita que dois bots rodem ao mesmo tempo
@@ -709,6 +722,33 @@ function handleRemoteVisualEvent(event, data, diceResultEl) {
             }
             break;
         }
+
+        case GameEvents.CARD_RESOLVED:
+            if (data.card) {
+                const amtColor = data.card.amount >= 0 ? '#8ae37f' : '#ff4747';
+                const amtSign = data.card.amount >= 0 ? '+' : '';
+                addChatMessage('Jogo', pColor,
+                    `${pIcon} ${pName}: ${data.card.title} (${amtSign}$${Math.abs(data.card.amount)})`);
+            }
+            break;
+
+        case GameEvents.QUIZ_STARTED:
+            addChatMessage('Jogo', pColor, `${pIcon} ${pName} está respondendo um quiz SST! 🎓`);
+            break;
+
+        case GameEvents.QUIZ_ANSWERED:
+            if (data.correct) {
+                addChatMessage('Jogo', '#8ae37f', `${pIcon} ${pName} acertou o quiz! ✅`);
+                SoundManager.play('correct');
+            } else {
+                addChatMessage('Jogo', '#ff4747', `${pIcon} ${pName} errou o quiz! ❌`);
+                SoundManager.play('wrong');
+            }
+            break;
+
+        case GameEvents.INTERDICTION_FAIL:
+            addChatMessage('Jogo', '#ff4747', `⛓️ ${pName} tentou dupla e falhou... Ainda interditado.`);
+            break;
     }
 }
 
