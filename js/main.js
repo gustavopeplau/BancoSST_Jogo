@@ -383,8 +383,8 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         }
         // Se o jogador atual é bot e ninguém está executando, dispara bot
         const syncCur = game.getCurrentPlayer();
-        if (syncCur && syncCur.isBot && !_botRunning && !game.isAnimating) {
-            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 600);
+        if (syncCur && syncCur.isBot && !_botRunning) {
+            setTimeout(() => executeBotTurnIfNeeded(btnRoll, diceResultEl, true), 600);
         }
     });
 
@@ -419,7 +419,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         if (event === GameEvents.TURN_ENDED && data?.nextPlayerIndex != null) {
             const nextP = game.players[data.nextPlayerIndex];
             if (nextP && nextP.isBot) {
-                setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 1000);
+                setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 800);
             }
         }
     });
@@ -464,74 +464,77 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         }
 
         // Se o jogador que saiu estava no meio do turno, reseta isAnimating
-        // para que o bot possa jogar imediatamente
-        if (game.currentPlayerIndex === playerIndex && game.isAnimating) {
-            console.warn('[BOT] Jogador saiu no meio do turno — resetando isAnimating.');
+        if (game.currentPlayerIndex === playerIndex) {
             game.isAnimating = false;
         }
 
-        // Dispara bot se é a vez dele (com retry caso isAnimating)
-        retryBotExecution(btnRoll, diceResultEl, 30);
+        // Dispara bot imediatamente
+        triggerBotExecution(btnRoll, diceResultEl);
     });
 
     // Quando o turno muda, verifica se o próximo jogador é um bot
     globalBus.on(GameEvents.TURN_ENDED, () => {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 800);
+        setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 600);
     });
 
     // Quando rola dupla (não emite TURN_ENDED), o bot precisa rolar de novo
     globalBus.on(GameEvents.DICE_DOUBLE, () => {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 1200);
+        setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 1000);
     });
 
-    // Fallback persistente: verifica a cada 3s se há bot parado esperando
+    // Fallback BACKUP: a cada 4s, QUALQUER humano pode executar o bot
+    // (sem restrição de executor primário — segurança máxima)
     setInterval(() => {
         if (game.gameOver || _botRunning) return;
         const cur = game.getCurrentPlayer();
         if (cur && cur.isBot) {
-            // Força reset de isAnimating se estiver stuck (o jogador original saiu)
-            if (game.isAnimating) {
-                console.warn('[BOT] Fallback: isAnimating stuck, forçando reset.');
-                game.isAnimating = false;
-            }
-            console.log('[BOT] Fallback: detectou bot parado, disparando execução.');
-            retryBotExecution(btnRoll, diceResultEl, 30);
+            game.isAnimating = false;
+            console.log('[BOT] Fallback backup: bot parado, disparando execução.');
+            executeBotTurnIfNeeded(btnRoll, diceResultEl, true);
         }
-    }, 3000);
+    }, 4000);
 }
 
 // Evita que dois bots rodem ao mesmo tempo
 let _botRunning = false;
 // Cleanup global dos patches do ModalManager (mantido entre turnos)
 let _botCleanup = null;
+// Timestamp do último turno de bot executado — previne dupla execução entre clients
+let _lastBotTurnIndex = -1;
 
 /**
- * Tenta executar o bot com retry caso isAnimating esteja true.
- * Após 5 retries com isAnimating stuck, força reset para evitar deadlock.
+ * Dispara execução do bot como executor primário (com retry se isAnimating).
  */
-function retryBotExecution(btnRoll, diceResultEl, retries, _initialRetries) {
+function triggerBotExecution(btnRoll, diceResultEl) {
     const game = SST_GLOBAL_GAME;
-    if (!game || game.gameOver || retries <= 0) return;
-    if (!_initialRetries) _initialRetries = retries;
+    if (!game || game.gameOver) return;
 
     if (_botRunning) {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1, _initialRetries), 1000);
+        // Já está executando, agenda retry
+        setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 1000);
         return;
     }
 
     if (game.isAnimating) {
-        const elapsed = _initialRetries - retries;
-        // Após 5s de isAnimating stuck, força reset
-        if (elapsed >= 5) {
-            console.warn('[BOT] isAnimating stuck por 5s — forçando reset.');
-            game.isAnimating = false;
-        } else {
-            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1, _initialRetries), 1000);
-            return;
-        }
+        // Espera isAnimating limpar (até 8 tentativas = 8s)
+        let attempts = 0;
+        const check = () => {
+            attempts++;
+            if (!game.isAnimating) {
+                executeBotTurnIfNeeded(btnRoll, diceResultEl, false);
+            } else if (attempts < 8) {
+                setTimeout(check, 1000);
+            } else {
+                // Força clear e executa
+                game.isAnimating = false;
+                executeBotTurnIfNeeded(btnRoll, diceResultEl, false);
+            }
+        };
+        setTimeout(check, 1000);
+        return;
     }
 
-    executeBotTurnIfNeeded(btnRoll, diceResultEl);
+    executeBotTurnIfNeeded(btnRoll, diceResultEl, false);
 }
 
 /**
@@ -555,13 +558,25 @@ function clearBotPatches() {
 }
 
 /**
- * Se o jogador atual é um bot, executa o turno do bot automaticamente.
- * Qualquer cliente online pode executar — _botRunning serve como mutex local.
- * O primeiro cliente a iniciar envia sync/events, os demais recebem e não duplicam.
+ * Determina o executor primário do bot: jogador humano de menor índice.
+ * Todos os clients calculam o mesmo resultado — sem race conditions.
  */
-async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
+function getPrimaryBotExecutor(game) {
+    for (let i = 0; i < game.players.length; i++) {
+        const p = game.players[i];
+        if (!p.eliminated && !p.isBot) return i;
+    }
+    return -1; // Todos são bots ou eliminados
+}
+
+/**
+ * Executa o turno do bot. 
+ * isBackup=false: só o executor primário (menor índice humano) executa.
+ * isBackup=true: qualquer humano pode executar (fallback de segurança).
+ */
+async function executeBotTurnIfNeeded(btnRoll, diceResultEl, isBackup) {
     const game = SST_GLOBAL_GAME;
-    if (!game || game.gameOver || game.isAnimating || _botRunning) return;
+    if (!game || game.gameOver || _botRunning) return;
 
     const currentPlayer = game.getCurrentPlayer();
     if (!currentPlayer || !currentPlayer.isBot) {
@@ -569,30 +584,45 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
         return;
     }
 
-    // Em modo online, verifica se o jogador local NÃO é bot e NÃO está eliminado
-    // (apenas humanos ativos executam bots — todos competem, o primeiro ganha via _botRunning)
+    // Previne dupla execução do mesmo turno
+    if (_lastBotTurnIndex === game.currentPlayerIndex) {
+        // Já executamos este turno — só prossiga se isAnimating voltou a false
+        // (indica que o turno anterior terminou e voltou para o mesmo bot por algum motivo)
+        if (game.isAnimating) return;
+    }
+
+    // Em modo online, verifica permissão para executar
     if (NetworkManager.isOnline) {
         const me = game.players[NetworkManager.playerId];
         if (!me || me.eliminated || me.isBot) return;
+
+        if (!isBackup) {
+            // Executor primário: menor índice humano
+            const primaryIdx = getPrimaryBotExecutor(game);
+            if (NetworkManager.playerId !== primaryIdx) return;
+        }
     }
 
+    // Limpa estado stuck
+    game.isAnimating = false;
     _botRunning = true;
-    console.log(`[BOT] Executando turno de ${currentPlayer.name} (bot) — executor: jogador ${NetworkManager.playerId}`);
+    _lastBotTurnIndex = game.currentPlayerIndex;
+
+    // Safety timeout: se _botRunning ficar stuck por 45s, força reset
+    const safetyTimer = setTimeout(() => {
+        if (_botRunning) {
+            console.warn('[BOT] Safety timeout 45s — forçando reset.');
+            _botRunning = false;
+            game.isAnimating = false;
+            _lastBotTurnIndex = -1;
+        }
+    }, 45000);
+
+    console.log(`[BOT] Executando turno de ${currentPlayer.name} | executor=${NetworkManager.playerId} backup=${isBackup}`);
     addChatMessage('Sistema', '#ff9800', `🤖 ${currentPlayer.name} está jogando automaticamente...`);
 
     // Ativa auto-resposta do ModalManager e auto-select de tiles
     ensureBotPatches();
-
-    // Pequeno delay aleatório (100-500ms) para evitar que múltiplos clientes executem juntos
-    // O primeiro a começar envia sync → os demais recebem e cancelam
-    if (NetworkManager.isOnline) {
-        await new Promise(r => setTimeout(r, 100 + Math.random() * 400));
-        // Re-verifica após o delay: se isAnimating está true, outro client já começou
-        if (game.isAnimating || !currentPlayer.isBot || game.currentPlayerIndex !== game.players.indexOf(currentPlayer)) {
-            _botRunning = false;
-            return;
-        }
-    }
 
     try {
         // Loop de duplas: enquanto for o mesmo jogador (dupla), rola de novo
@@ -612,14 +642,15 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
         console.error('[BOT] Erro durante turno bot:', e);
     }
 
+    clearTimeout(safetyTimer);
     _botRunning = false;
+    _lastBotTurnIndex = -1;
 
-    // NÃO limpa patches — eles serão limpos quando for a vez de um humano.
     // Verifica se o próximo jogador também é bot (encadeamento)
     if (!game.gameOver) {
         const next = game.getCurrentPlayer();
         if (next && next.isBot) {
-            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 1000);
+            setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 1000);
         } else {
             clearBotPatches();
         }
