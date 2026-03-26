@@ -555,8 +555,9 @@ function clearBotPatches() {
 }
 
 /**
- * Se o jogador atual é um bot e este cliente é o próximo jogador humano conectado,
- * executa o turno do bot automaticamente (loop completo com duplas e encadeamento).
+ * Se o jogador atual é um bot, executa o turno do bot automaticamente.
+ * Qualquer cliente online pode executar — _botRunning serve como mutex local.
+ * O primeiro cliente a iniciar envia sync/events, os demais recebem e não duplicam.
  */
 async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
     const game = SST_GLOBAL_GAME;
@@ -568,29 +569,30 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
         return;
     }
 
-    // Determina quem deve executar o turno do bot:
-    // O próximo jogador humano conectado (cyclic) executa.
-    const myIndex = NetworkManager.playerId;
-    const total = game.players.length;
-    let executorIndex = -1;
-    for (let i = 1; i <= total; i++) {
-        const idx = (game.currentPlayerIndex + i) % total;
-        const p = game.players[idx];
-        if (!p.eliminated && !p.isBot) {
-            executorIndex = idx;
-            break;
-        }
+    // Em modo online, verifica se o jogador local NÃO é bot e NÃO está eliminado
+    // (apenas humanos ativos executam bots — todos competem, o primeiro ganha via _botRunning)
+    if (NetworkManager.isOnline) {
+        const me = game.players[NetworkManager.playerId];
+        if (!me || me.eliminated || me.isBot) return;
     }
 
-    // Só executa se EU sou o executor designado
-    if (executorIndex !== myIndex) return;
-
     _botRunning = true;
-    console.log(`[BOT] Executando turno de ${currentPlayer.name} (bot) — executor: jogador ${myIndex}`);
+    console.log(`[BOT] Executando turno de ${currentPlayer.name} (bot) — executor: jogador ${NetworkManager.playerId}`);
     addChatMessage('Sistema', '#ff9800', `🤖 ${currentPlayer.name} está jogando automaticamente...`);
 
     // Ativa auto-resposta do ModalManager e auto-select de tiles
     ensureBotPatches();
+
+    // Pequeno delay aleatório (100-500ms) para evitar que múltiplos clientes executem juntos
+    // O primeiro a começar envia sync → os demais recebem e cancelam
+    if (NetworkManager.isOnline) {
+        await new Promise(r => setTimeout(r, 100 + Math.random() * 400));
+        // Re-verifica após o delay: se isAnimating está true, outro client já começou
+        if (game.isAnimating || !currentPlayer.isBot || game.currentPlayerIndex !== game.players.indexOf(currentPlayer)) {
+            _botRunning = false;
+            return;
+        }
+    }
 
     try {
         // Loop de duplas: enquanto for o mesmo jogador (dupla), rola de novo
@@ -617,7 +619,7 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl) {
     if (!game.gameOver) {
         const next = game.getCurrentPlayer();
         if (next && next.isBot) {
-            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 10), 1000);
+            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 1000);
         } else {
             clearBotPatches();
         }
