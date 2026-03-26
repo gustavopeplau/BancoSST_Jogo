@@ -381,6 +381,11 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
             _originalClose();
             ModalManager.overlay.classList.remove('spectator-mode');
         }
+        // Se o jogador atual é bot e ninguém está executando, dispara bot
+        const syncCur = game.getCurrentPlayer();
+        if (syncCur && syncCur.isBot && !_botRunning && !game.isAnimating) {
+            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 600);
+        }
     });
 
     // ══════════════════════════════════════════════════════
@@ -409,6 +414,14 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         }
 
         _isReceivingRemoteData = false;
+
+        // Se o evento remoto indica troca de turno para um bot, dispara execução
+        if (event === GameEvents.TURN_ENDED && data?.nextPlayerIndex != null) {
+            const nextP = game.players[data.nextPlayerIndex];
+            if (nextP && nextP.isBot) {
+                setTimeout(() => retryBotExecution(btnRoll, diceResultEl, 30), 1000);
+            }
+        }
     });
 
     // ══════════════════════════════════════════════════════
@@ -450,6 +463,13 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
             game.updateUI();
         }
 
+        // Se o jogador que saiu estava no meio do turno, reseta isAnimating
+        // para que o bot possa jogar imediatamente
+        if (game.currentPlayerIndex === playerIndex && game.isAnimating) {
+            console.warn('[BOT] Jogador saiu no meio do turno — resetando isAnimating.');
+            game.isAnimating = false;
+        }
+
         // Dispara bot se é a vez dele (com retry caso isAnimating)
         retryBotExecution(btnRoll, diceResultEl, 30);
     });
@@ -466,12 +486,16 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
 
     // Fallback persistente: verifica a cada 3s se há bot parado esperando
     setInterval(() => {
-        if (!game.gameOver && !_botRunning && !game.isAnimating) {
-            const cur = game.getCurrentPlayer();
-            if (cur && cur.isBot) {
-                console.log('[BOT] Fallback: detectou bot parado, disparando execução.');
-                retryBotExecution(btnRoll, diceResultEl, 30);
+        if (game.gameOver || _botRunning) return;
+        const cur = game.getCurrentPlayer();
+        if (cur && cur.isBot) {
+            // Força reset de isAnimating se estiver stuck (o jogador original saiu)
+            if (game.isAnimating) {
+                console.warn('[BOT] Fallback: isAnimating stuck, forçando reset.');
+                game.isAnimating = false;
             }
+            console.log('[BOT] Fallback: detectou bot parado, disparando execução.');
+            retryBotExecution(btnRoll, diceResultEl, 30);
         }
     }, 3000);
 }
@@ -483,14 +507,30 @@ let _botCleanup = null;
 
 /**
  * Tenta executar o bot com retry caso isAnimating esteja true.
+ * Após 5 retries com isAnimating stuck, força reset para evitar deadlock.
  */
-function retryBotExecution(btnRoll, diceResultEl, retries) {
+function retryBotExecution(btnRoll, diceResultEl, retries, _initialRetries) {
     const game = SST_GLOBAL_GAME;
     if (!game || game.gameOver || retries <= 0) return;
-    if (_botRunning || game.isAnimating) {
-        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1), 1000);
+    if (!_initialRetries) _initialRetries = retries;
+
+    if (_botRunning) {
+        setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1, _initialRetries), 1000);
         return;
     }
+
+    if (game.isAnimating) {
+        const elapsed = _initialRetries - retries;
+        // Após 5s de isAnimating stuck, força reset
+        if (elapsed >= 5) {
+            console.warn('[BOT] isAnimating stuck por 5s — forçando reset.');
+            game.isAnimating = false;
+        } else {
+            setTimeout(() => retryBotExecution(btnRoll, diceResultEl, retries - 1, _initialRetries), 1000);
+            return;
+        }
+    }
+
     executeBotTurnIfNeeded(btnRoll, diceResultEl);
 }
 
