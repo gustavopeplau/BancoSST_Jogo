@@ -2,7 +2,7 @@ import { BOARD_DATA } from '../data/boardData.js';
 import { sleep } from '../utils/helpers.js';
 import { JuiceFX } from '../utils/JuiceFX.js';
 import { SoundManager } from '../utils/SoundManager.js';
-import { isBotAutoSelectActive } from '../models/BotManager.js';
+import { isBotAutoSelectActive, BotManager } from '../models/BotManager.js';
 
 // Rastreia a casa ativa de cada jogador para destaque visual
 let _activeSpaceId = null;
@@ -301,10 +301,11 @@ export function enableBoardSpaceSelection(eligibleIds) {
             handlers.push({ el, handler });
         });
 
-        // Bot auto-select: espera 9s para que jogadores vejam, depois clica
+        // Bot auto-select: escolhe estrategicamente e espera 9s
         if (isBotAutoSelectActive() && eligibleIds.length > 0) {
+            const bestId = BotManager.chooseBestSpace(eligibleIds);
             setTimeout(() => {
-                const el = document.getElementById(`space-${eligibleIds[0]}`);
+                const el = document.getElementById(`space-${bestId}`);
                 if (el) el.click();
             }, 9000);
         }
