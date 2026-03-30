@@ -948,13 +948,15 @@ export class GameEngine {
         }
         this.currentPlayerIndex = next;
         
+        // isAnimating DEVE ser false ANTES de emitir eventos (evita timing bugs com bot)
+        this.isAnimating = false;
+
         SoundManager.play('turnChange');
         this.bus.emit(GameEvents.TURN_ENDED, {
             previousPlayerIndex: (next - 1 + this.players.length) % this.players.length,
             nextPlayerIndex: next,
             nextPlayerId: this.players[next].id
         });
-        this.isAnimating = false;
 
         this._emitStateChanged();
         this.updateUI();

@@ -301,12 +301,12 @@ export function enableBoardSpaceSelection(eligibleIds) {
             handlers.push({ el, handler });
         });
 
-        // Bot auto-select: clica automaticamente no primeiro tile elegível
+        // Bot auto-select: espera 9s para que jogadores vejam, depois clica
         if (isBotAutoSelectActive() && eligibleIds.length > 0) {
             setTimeout(() => {
                 const el = document.getElementById(`space-${eligibleIds[0]}`);
                 if (el) el.click();
-            }, 800);
+            }, 9000);
         }
     });
 }

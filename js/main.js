@@ -267,6 +267,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
     const game = SST_GLOBAL_GAME;
     let _isReceivingRemoteData = false;
     let _rollCheckInterval = null;
+    let _lastSyncReceivedAt = 0;
 
     // ── Monkey-patch ModalManager para broadcast automático de modais ──
     const _originalOpen  = ModalManager._open.bind(ModalManager);
@@ -370,6 +371,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
 
     globalBus.on('net:gameSync', (snapshot) => {
         _isReceivingRemoteData = true;
+        _lastSyncReceivedAt = Date.now();
         game.loadSnapshot(snapshot);
         game.updateUI();
         syncTokenPositions(game.players);
@@ -381,11 +383,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
             _originalClose();
             ModalManager.overlay.classList.remove('spectator-mode');
         }
-        // Se o jogador atual é bot e ninguém está executando, dispara bot
-        const syncCur = game.getCurrentPlayer();
-        if (syncCur && syncCur.isBot && !_botRunning) {
-            setTimeout(() => executeBotTurnIfNeeded(btnRoll, diceResultEl, true), 600);
-        }
+        // NÃO dispara bot aqui — deixa o executor primário agir via TURN_ENDED/playerBecameBot
     });
 
     // ══════════════════════════════════════════════════════
@@ -418,8 +416,8 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         // Se o evento remoto indica troca de turno para um bot, dispara execução
         if (event === GameEvents.TURN_ENDED && data?.nextPlayerIndex != null) {
             const nextP = game.players[data.nextPlayerIndex];
-            if (nextP && nextP.isBot) {
-                setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 800);
+            if (nextP && nextP.isBot && !_botRunning) {
+                setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 600);
             }
         }
     });
@@ -463,13 +461,15 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
             game.updateUI();
         }
 
-        // Se o jogador que saiu estava no meio do turno, reseta isAnimating
+        // Se o jogador que saiu estava no meio do turno, limpa estado completamente
         if (game.currentPlayerIndex === playerIndex) {
             game.isAnimating = false;
+            // Fecha qualquer modal que possa estar travado (ex: askToBuy, quiz)
+            try { ModalManager.closeModal(); } catch (_) {}
         }
 
-        // Dispara bot imediatamente
-        triggerBotExecution(btnRoll, diceResultEl);
+        // Dispara bot imediatamente (aguarda modal fechar)
+        setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 300);
     });
 
     // Quando o turno muda, verifica se o próximo jogador é um bot
@@ -482,25 +482,39 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 1000);
     });
 
-    // Fallback BACKUP: a cada 4s, QUALQUER humano pode executar o bot
-    // (sem restrição de executor primário — segurança máxima)
+    // Fallback BACKUP: a cada 3s, verifica se o bot está parado.
+    // Só dispara backup se NÃO recebemos sync de outro client recentemente
+    // (indicando que outro client já está executando o bot).
+    let _backupMissCount = 0;
     setInterval(() => {
-        if (game.gameOver || _botRunning) return;
+        if (game.gameOver || _botRunning) { _backupMissCount = 0; return; }
         const cur = game.getCurrentPlayer();
         if (cur && cur.isBot) {
-            game.isAnimating = false;
-            console.log('[BOT] Fallback backup: bot parado, disparando execução.');
-            executeBotTurnIfNeeded(btnRoll, diceResultEl, true);
+            // Se recebemos sync recente (<25s), outro client está executando
+            const timeSinceSync = Date.now() - _lastSyncReceivedAt;
+            if (timeSinceSync < 25000) {
+                _backupMissCount = 0;
+                return;
+            }
+            _backupMissCount++;
+            // Primeiras tentativas: respeita executor primário
+            // Após 10 misses (30s sem sync): qualquer humano pode executar
+            if (_backupMissCount >= 2) {
+                game.isAnimating = false;
+                const useBackup = _backupMissCount >= 10;
+                console.log(`[BOT] Fallback: bot parado (miss=${_backupMissCount}, syncAge=${Math.round(timeSinceSync/1000)}s, backup=${useBackup})`);
+                executeBotTurnIfNeeded(btnRoll, diceResultEl, useBackup);
+            }
+        } else {
+            _backupMissCount = 0;
         }
-    }, 4000);
+    }, 3000);
 }
 
 // Evita que dois bots rodem ao mesmo tempo
 let _botRunning = false;
 // Cleanup global dos patches do ModalManager (mantido entre turnos)
 let _botCleanup = null;
-// Timestamp do último turno de bot executado — previne dupla execução entre clients
-let _lastBotTurnIndex = -1;
 
 /**
  * Dispara execução do bot como executor primário (com retry se isAnimating).
@@ -509,28 +523,32 @@ function triggerBotExecution(btnRoll, diceResultEl) {
     const game = SST_GLOBAL_GAME;
     if (!game || game.gameOver) return;
 
+    const cur = game.getCurrentPlayer();
+    if (!cur || !cur.isBot) return;
+
     if (_botRunning) {
-        // Já está executando, agenda retry
-        setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 1000);
+        // Já está executando, agenda retry rápido
+        setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 500);
         return;
     }
 
     if (game.isAnimating) {
-        // Espera isAnimating limpar (até 8 tentativas = 8s)
+        // Espera isAnimating limpar (até 6 tentativas = 3s, depois força)
         let attempts = 0;
         const check = () => {
             attempts++;
             if (!game.isAnimating) {
                 executeBotTurnIfNeeded(btnRoll, diceResultEl, false);
-            } else if (attempts < 8) {
-                setTimeout(check, 1000);
+            } else if (attempts < 6) {
+                setTimeout(check, 500);
             } else {
                 // Força clear e executa
+                console.warn('[BOT] isAnimating stuck, forçando reset.');
                 game.isAnimating = false;
                 executeBotTurnIfNeeded(btnRoll, diceResultEl, false);
             }
         };
-        setTimeout(check, 1000);
+        setTimeout(check, 500);
         return;
     }
 
@@ -584,13 +602,6 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl, isBackup) {
         return;
     }
 
-    // Previne dupla execução do mesmo turno
-    if (_lastBotTurnIndex === game.currentPlayerIndex) {
-        // Já executamos este turno — só prossiga se isAnimating voltou a false
-        // (indica que o turno anterior terminou e voltou para o mesmo bot por algum motivo)
-        if (game.isAnimating) return;
-    }
-
     // Em modo online, verifica permissão para executar
     if (NetworkManager.isOnline) {
         const me = game.players[NetworkManager.playerId];
@@ -606,17 +617,24 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl, isBackup) {
     // Limpa estado stuck
     game.isAnimating = false;
     _botRunning = true;
-    _lastBotTurnIndex = game.currentPlayerIndex;
 
-    // Safety timeout: se _botRunning ficar stuck por 45s, força reset
+    // Fecha qualquer modal que possa estar aberto/travado de turno anterior
+    try {
+        if (ModalManager.overlay && ModalManager.overlay.classList.contains('active')) {
+            ModalManager.closeModal();
+            await new Promise(r => setTimeout(r, 150));
+        }
+    } catch (_) {}
+
+    // Safety timeout: se _botRunning ficar stuck por 5min, força reset
+    // (turnos de bot podem durar até 3min com 15s por ação)
     const safetyTimer = setTimeout(() => {
         if (_botRunning) {
-            console.warn('[BOT] Safety timeout 45s — forçando reset.');
+            console.warn('[BOT] Safety timeout 5min — forçando reset.');
             _botRunning = false;
             game.isAnimating = false;
-            _lastBotTurnIndex = -1;
         }
-    }, 45000);
+    }, 300000);
 
     console.log(`[BOT] Executando turno de ${currentPlayer.name} | executor=${NetworkManager.playerId} backup=${isBackup}`);
     addChatMessage('Sistema', '#ff9800', `🤖 ${currentPlayer.name} está jogando automaticamente...`);
@@ -644,13 +662,12 @@ async function executeBotTurnIfNeeded(btnRoll, diceResultEl, isBackup) {
 
     clearTimeout(safetyTimer);
     _botRunning = false;
-    _lastBotTurnIndex = -1;
 
     // Verifica se o próximo jogador também é bot (encadeamento)
     if (!game.gameOver) {
         const next = game.getCurrentPlayer();
         if (next && next.isBot) {
-            setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 1000);
+            setTimeout(() => triggerBotExecution(btnRoll, diceResultEl), 800);
         } else {
             clearBotPatches();
         }
