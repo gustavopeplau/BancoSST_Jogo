@@ -13,6 +13,13 @@ export class Player {
         // Propriedades compradas (IDs do BOARD_DATA)
         this.ownedPropertiesIds = [];
 
+        // Nível de evolução de cada propriedade: { spaceId: 1-4 }
+        // Nível 1 = Básico (ao comprar), até Nível 4 = Excelência
+        this.propertyLevels = {};
+
+        // ID da propriedade que recebe o bônus SIPAT (⭐), ou null
+        this.sipatSpaceId = null;
+
         // Chaves dos profissionais SESMT contratados
         // ex: ['tecSeguranca', 'medico', 'brigada']
         this.sesmtOwned = [];
@@ -67,6 +74,8 @@ export class Player {
             money:    this.money,
             position: this.position,
             ownedPropertiesIds:      [...this.ownedPropertiesIds],
+            propertyLevels:          { ...this.propertyLevels },
+            sipatSpaceId:            this.sipatSpaceId,
             sesmtOwned:              [...this.sesmtOwned],
             interdictionTurns:       this.interdictionTurns,
             canChooseSpace:          this.canChooseSpace,
@@ -84,6 +93,8 @@ export class Player {
         p.money                    = data.money;
         p.position                 = data.position;
         p.ownedPropertiesIds       = [...(data.ownedPropertiesIds || [])];
+        p.propertyLevels           = { ...(data.propertyLevels || {}) };
+        p.sipatSpaceId             = data.sipatSpaceId ?? null;
         p.sesmtOwned               = [...(data.sesmtOwned || [])];
         p.interdictionTurns        = data.interdictionTurns || 0;
         p.canChooseSpace           = data.canChooseSpace || false;

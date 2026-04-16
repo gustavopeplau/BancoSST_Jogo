@@ -63,6 +63,7 @@ export const GameEvents = {
     PROPERTY_BOUGHT:     'property:bought',
     PROPERTY_PASSED:     'property:passed',
     PROPERTY_SOLD:       'property:sold',
+    PROPERTY_UPGRADED:   'property:upgraded',
     RENT_PAID:           'rent:paid',
     
     // Carta SST

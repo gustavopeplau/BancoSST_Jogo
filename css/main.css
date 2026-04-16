@@ -4,8 +4,8 @@
     --panel-bg: rgba(13, 24, 38, 0.7);
     --glass-border: rgba(255, 255, 255, 0.1);
     
-    --color-cipa: #8ae37f; --color-aet: #f1dd38; --color-pca: #ffa54f;
-    --color-pcmso: #ff4747; --color-pgr: #b757ff; --color-ltcat: #40a2ff;
+    --color-cipa: #4caf50; --color-aet: #8d6e63; --color-pca: #42a5f5;
+    --color-pcmso: #ef5350; --color-pgr: #ff7043; --color-ltcat: #7e57c2;
     --color-pce: #8f603c; --color-gestao: #1c1c1c; 
 }
 

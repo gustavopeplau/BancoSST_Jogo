@@ -1,4 +1,4 @@
-import { BOARD_DATA, GROUP_SIZE } from '../data/boardData.js';
+import { BOARD_DATA, GROUP_SIZE, LEVEL_NAMES } from '../data/boardData.js';
 import { JuiceFX } from '../utils/JuiceFX.js';
 import { SoundManager } from '../utils/SoundManager.js';
 import { NetworkManager } from '../net/NetworkManager.js';
@@ -37,6 +37,11 @@ export class UIManager {
     }
 
     static updatePlayerHUDsInfoInHTMLGlobalDisplayBaseDaGame(players, currentIndex) {
+        // 3D mode: delegate HUD update
+        if (window._SST_3D) {
+            window._SST_3D.updateHUD(players, currentIndex);
+            return;
+        }
         const leftPanel  = document.getElementById('left-panel');
         const rightPanel = document.getElementById('right-panel');
         if (!leftPanel || !rightPanel) return;
@@ -185,8 +190,13 @@ export class UIManager {
                         ? space.name.split('—')[1].trim()
                         : (space.name.length > 20 ? space.name.slice(0, 19) + '…' : space.name);
                     const cls = space.type === 'sesmt' ? 'deck-chip deck-chip-sesmt' : 'deck-chip';
-                    const tip = space._tip || `${space.name} — $${space.price}`;
-                    return `<span class="${cls}" style="background:${space.color}" title="${tip}">${label}</span>`;
+                    const level = player.propertyLevels[space.id] || 0;
+                    const lvlExtras = { 2: '📋', 3: '⚙️', 4: '🏆' };
+                    let levelTag = level >= 1 ? ' 🚩' : '';
+                    if (level >= 2 && lvlExtras[level]) levelTag += lvlExtras[level];
+                    const sipatTag = player.sipatSpaceId === space.id ? ' ⭐' : '';
+                    const tip = space._tip || `${space.name} — $${space.price} — ${LEVEL_NAMES[level] || ''}${sipatTag}`;
+                    return `<span class="${cls}" style="background:${space.color}" title="${tip}">${label}${levelTag}${sipatTag}</span>`;
                 }).join('');
 
                 const progressHtml = !isSesmtGroup && groupSize > 0
@@ -263,7 +273,12 @@ export class UIManager {
         if (!btnEl) return;
         btnEl.classList.toggle('btn-turn-glow', !btnEl.disabled);
         if (player) {
-            btnEl.innerHTML = `${player.icon} Rolar e Inspecionar 🎲🎲`;
+            // In 3D mode, keep centered button text simple
+            if (window._SST_3D) {
+                btnEl.textContent = '🎲 Rolar os Dados';
+            } else {
+                btnEl.innerHTML = `${player.icon} Rolar e Inspecionar 🎲🎲`;
+            }
         }
     }
 

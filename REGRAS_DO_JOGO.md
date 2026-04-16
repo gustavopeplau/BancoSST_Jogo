@@ -134,8 +134,9 @@ Existem **22 propriedades** organizadas em **8 grupos temáticos**. Cada grupo r
 
 Cada propriedade possui:
 - **Preço de compra** — valor para adquirir do "banco" (governo/mercado)
-- **Aluguel base** — 20% do preço de compra, cobrado de visitantes
+- **Aluguel base** — 10% do preço de compra (multiplicado pelo nível de evolução)
 - **Grupo** — pertencimento ao programa de SST
+- **Níveis de Evolução** — 4 níveis (Básico → Excelência) com custos e multiplicadores crescentes
 - **Base legal** — referência normativa real (NR, Lei, ISO)
 
 ### Casas de Profissional SESMT
@@ -179,22 +180,27 @@ Quando um jogador pousa em uma propriedade ou profissional SESMT pertencente a *
 
 ### Cálculo do Aluguel
 
-| Situação | Fórmula |
+O aluguel base de cada propriedade é **10% do preço de compra**. Esse valor é multiplicado pelo nível de evolução, monopólio e SIPAT:
+
+| Fator | Multiplicador |
 |---|---|
-| Aluguel base (propriedade) | 20% do preço de compra |
-| Monopólio do grupo | Aluguel base × **2** |
-| SIPAT (dobra permanente) | Aluguel × **2** |
-| Monopólio + SIPAT | Aluguel base × **4** |
-| Profissional SESMT | **$100** (fixo) |
+| Nível 1 — Básico | ×1 (base) |
+| Nível 2 — Intermediário | ×2 |
+| Nível 3 — Avançado | ×4 |
+| Nível 4 — Excelência | ×8 |
+| Monopólio do grupo | ×2 (sobre o valor do nível) |
+| ⭐ Estrela SIPAT | ×N (cumulativo: 2×, 3×, 4×...) |
+| Profissional SESMT | **$100** (fixo, não evolui) |
+
+**Fórmula completa:**
+`Aluguel = Rent Base × Multiplicador do Nível × Monopólio (×2 se completo) × SIPAT (×N se ativo)`
 
 ### Descontos no Aluguel (para quem paga)
 
 - **Engenheiro SST**: pagar aluguel em casas **PGR** e **LTCAT** custa 25% menos
 - **Médico do Trabalho**: pagar aluguel em casas **PCMSO** e **PCA** custa 25% menos
 
-### Bônus do Dono (Maturidade Nível 2+)
-
-Se o dono da propriedade estiver no **Nível de Maturidade 2 ou superior**, ele recebe **10% a mais** sobre o aluguel cobrado.
+> **Exemplo**: PGR Inventário ($440), Nível 3 (×4), com monopólio (×2) = $44 × 4 × 2 = **$352**
 
 ---
 
@@ -203,10 +209,10 @@ Se o dono da propriedade estiver no **Nível de Maturidade 2 ou superior**, ele 
 ### Monopólio
 
 Um jogador conquista o **monopólio** de um grupo quando adquire **todas as propriedades** daquele programa. Isso:
-- **Dobra** o aluguel base de todas as casas do grupo
+- **Dobra** o aluguel de todas as casas do grupo (aplicado sobre o valor do nível)
 - Contribui para o avanço do **Nível de Maturidade**
 
-### Nível de Maturidade
+### Nível de Maturidade (Global)
 
 O Nível de Maturidade representa a evolução da cultura de SST na empresa do jogador. Ele sobe automaticamente conforme o número de monopólios conquistados:
 
@@ -214,10 +220,42 @@ O Nível de Maturidade representa a evolução da cultura de SST na empresa do j
 |---|---|---|
 | **Nível 0** | 0 | Nenhum bônus |
 | **Nível 1** | 1 | **15%** de desconto na compra de propriedades |
-| **Nível 2** | 2 | **20%** de desconto na compra + **10%** a mais no aluguel recebido |
+| **Nível 2** | 2 | **20%** de desconto na compra |
 | **Nível 3** | 3 | **25%** de desconto na compra + pode **descartar 1 carta de Fiscalização** por rodada |
 
 > O nível pode diminuir se o jogador for forçado a vender propriedades e perder monopólios.
+
+---
+
+## 🔧 Sistema de Evolução de Propriedades
+
+Cada propriedade possui **4 níveis de evolução** que representam a maturidade do programa de SST:
+
+| Nível | Nome | Custo | Multiplicador de Aluguel |
+|---|---|---|---|
+| 1 | **Básico** | (compra da propriedade) | ×1 |
+| 2 | **Intermediário** | 50% do preço da propriedade | ×2 |
+| 3 | **Avançado** | 75% do preço da propriedade | ×4 |
+| 4 | **Excelência** | 100% do preço da propriedade | ×8 |
+
+### Regras de Evolução
+
+1. Ao **comprar** uma propriedade, ela começa no **Nível 1 (Básico)**
+2. O jogador pode evoluir **imediatamente após a compra** ou ao **cair na própria propriedade**
+3. A evolução é **progressiva** — não é possível pular níveis (1→2→3→4)
+4. Cada evolução exige **pagamento imediato**
+5. O jogador pode evoluir **vários níveis em sequência** no mesmo turno (se tiver dinheiro)
+
+### Exemplo: PGR — Inventário de Riscos ($440)
+
+| Nível | Custo Evolução | Aluguel | Com Monopólio |
+|---|---|---|---|
+| 1 — Básico | — | $44 | $88 |
+| 2 — Intermediário | $220 | $88 | $176 |
+| 3 — Avançado | $330 | $176 | $352 |
+| 4 — Excelência | $440 | $352 | $704 |
+
+> **Investimento total para Nível 4**: $440 (compra) + $220 + $330 + $440 = **$1.430**
 
 ---
 
@@ -340,14 +378,16 @@ Ao pousar aqui, o jogador é **interditado** e não poderá se mover normalmente
 
 ### 🎉 Casa 20 — SIPAT (Semana Interna de Prevenção)
 
-Ao pousar aqui, o jogador pode escolher **uma de suas propriedades** para ter o aluguel **permanentemente dobrado**.
+Ao pousar aqui, o jogador escolhe **uma de suas propriedades** para receber a **⭐ Estrela SIPAT**, um multiplicador cumulativo sobre o aluguel.
 
-- O jogador clica diretamente no tabuleiro para selecionar a propriedade.
-- Apenas propriedades que **ainda não foram dobradas** são elegíveis.
-- Se o jogador não possuir propriedades elegíveis, o efeito é perdido.
-- A propriedade recebe um selo visual de SIPAT no tabuleiro.
+- **1ª ativação no jogo**: multiplicador **2×** sobre o aluguel da propriedade
+- **2ª ativação**: a estrela **muda de lugar** e o multiplicador sobe para **3×**
+- **3ª ativação**: multiplicador **4×**, e assim por diante
+- Apenas **uma propriedade** pode ter a estrela SIPAT por vez (ela migra)
+- Se o jogador não possuir propriedades, o efeito é perdido
+- A propriedade recebe um selo visual ⭐ no tabuleiro
 
-> **Dica estratégica**: Combine SIPAT com monopólio para atingir **4× o aluguel base** (monopólio 2× + SIPAT 2× = 4×)!
+> **Dica estratégica**: A SIPAT fica cada vez mais poderosa! Combine com monopólio e nível alto para aluguéis devastadores!
 
 ### 🚖 Casa 30 — APORTE DE CAPITAL
 
@@ -383,9 +423,9 @@ Quando o saldo de um jogador se torna **negativo** (seja por aluguel, carta ou a
 ### Venda Forçada
 
 - O jogador escolhe qual propriedade vender.
-- Propriedades são vendidas por **50% do preço de compra** (valor fixo, independente de SIPAT ou melhorias).
-- Ao vender, a casa retorna ao banco (disponível para qualquer jogador comprar novamente).
-- Se a propriedade tinha SIPAT, o efeito de dobra é perdido.
+- Propriedades são vendidas por **50% do investimento total** (compra + custos de evolução).
+- Ao vender, a casa retorna ao banco (nível resetado, disponível para qualquer jogador comprar).
+- Se a propriedade tinha a ⭐ Estrela SIPAT, o efeito é perdido.
 - Se era um profissional SESMT, o benefício é removido.
 - O processo se repete até o saldo ficar **≥ $0** ou o jogador ficar sem propriedades.
 
@@ -453,7 +493,7 @@ Todos os demais jogadores foram **eliminados por falência**. O último sobreviv
 | Quiz — acerto | +$200 |
 | Quiz — erro/timeout | -$100 |
 | Tempo do Quiz | 20 segundos |
-| Venda forçada | 50% do preço de compra |
+| Venda forçada | 50% do investimento total (compra + evoluções) |
 | Auditoria Interna | 10% das propriedades sem monopólio |
 | Consultoria (outro jogador) | 25% do valor da carta |
 | Desconto (próprio profissional) | 50% do valor da carta |
@@ -464,63 +504,63 @@ Todos os demais jogadores foram **eliminados por falência**. O último sobreviv
 
 ### Lado 1 — Base Inferior (Prevenção e Ergonomia)
 
-| # | Nome | Tipo | Grupo | Preço | Aluguel |
+| # | Nome | Tipo | Grupo | Preço | Aluguel Base |
 |---|---|---|---|---|---|
 | 0 | 🟢 INÍCIO | Canto | — | — | — |
-| 1 | CIPA — Eleição | Propriedade | CIPA | $160 | $32 |
+| 1 | CIPA — Eleição | Propriedade | CIPA | $120 | $12 |
 | 2 | ✉️ Carta SST | Carta | — | — | — |
-| 3 | CIPA — Treinamento | Propriedade | CIPA | $240 | $48 |
+| 3 | CIPA — Treinamento | Propriedade | CIPA | $180 | $18 |
 | 4 | 👷 Téc. Segurança | SESMT | — | $400 | $100 |
 | 5 | ✉️ Carta SST | Carta | — | — | — |
-| 6 | AET — Levantamento | Propriedade | AET | $270 | $54 |
+| 6 | AET — Levantamento | Propriedade | AET | $180 | $18 |
 | 7 | ✉️ Carta SST | Carta | — | — | — |
-| 8 | AET — Avaliação | Propriedade | AET | $300 | $60 |
-| 9 | AET — Relatório | Propriedade | AET | $330 | $66 |
+| 8 | AET — Avaliação | Propriedade | AET | $200 | $20 |
+| 9 | AET — Relatório | Propriedade | AET | $220 | $22 |
 
 ### Lado 2 — Lateral Esquerda (Saúde Ocupacional)
 
-| # | Nome | Tipo | Grupo | Preço | Aluguel |
+| # | Nome | Tipo | Grupo | Preço | Aluguel Base |
 |---|---|---|---|---|---|
 | 10 | 🚫 Interdição | Canto | — | — | — |
-| 11 | PCA — Exp. Ruído | Propriedade | PCA | $360 | $72 |
+| 11 | PCA — Exp. Ruído | Propriedade | PCA | $230 | $23 |
 | 12 | 🩺 Téc. Enfermagem | SESMT | — | $400 | $100 |
-| 13 | PCA — Audiometria | Propriedade | PCA | $400 | $80 |
-| 14 | PCA — Controle | Propriedade | PCA | $440 | $88 |
+| 13 | PCA — Audiometria | Propriedade | PCA | $260 | $26 |
+| 14 | PCA — Controle | Propriedade | PCA | $290 | $29 |
 | 15 | 📐 Engenheiro SST | SESMT | — | $500 | $100 |
-| 16 | PCMSO — Planejamento | Propriedade | PCMSO | $450 | $90 |
+| 16 | PCMSO — Planejamento | Propriedade | PCMSO | $300 | $30 |
 | 17 | ✉️ Carta SST | Carta | — | — | — |
-| 18 | PCMSO — Exames | Propriedade | PCMSO | $500 | $100 |
-| 19 | PCMSO — Anual | Propriedade | PCMSO | $550 | $110 |
+| 18 | PCMSO — Exames | Propriedade | PCMSO | $340 | $34 |
+| 19 | PCMSO — Anual | Propriedade | PCMSO | $380 | $38 |
 
 ### Lado 3 — Lateral Superior (Gestão de Riscos)
 
-| # | Nome | Tipo | Grupo | Preço | Aluguel |
+| # | Nome | Tipo | Grupo | Preço | Aluguel Base |
 |---|---|---|---|---|---|
 | 20 | 🎉 SIPAT | Canto | — | — | — |
-| 21 | PGR — Perigos | Propriedade | PGR | $540 | $108 |
+| 21 | PGR — Perigos | Propriedade | PGR | $400 | $40 |
 | 22 | ✉️ Carta SST | Carta | — | — | — |
-| 23 | PGR — Inventário | Propriedade | PGR | $600 | $120 |
-| 24 | PGR — Ação | Propriedade | PGR | $660 | $132 |
+| 23 | PGR — Inventário | Propriedade | PGR | $440 | $44 |
+| 24 | PGR — Ação | Propriedade | PGR | $480 | $48 |
 | 25 | 🏥 Médico do Trabalho | SESMT | — | $500 | $100 |
-| 26 | LTCAT — Agentes | Propriedade | LTCAT | $630 | $126 |
-| 27 | LTCAT — Caracterização | Propriedade | LTCAT | $700 | $140 |
+| 26 | LTCAT — Agentes | Propriedade | LTCAT | $500 | $50 |
+| 27 | LTCAT — Caracterização | Propriedade | LTCAT | $560 | $56 |
 | 28 | ✉️ Carta SST | Carta | — | — | — |
-| 29 | LTCAT — Emissão | Propriedade | LTCAT | $770 | $154 |
+| 29 | LTCAT — Emissão | Propriedade | LTCAT | $620 | $62 |
 
 ### Lado 4 — Lateral Direita (Emergências e Certificação)
 
-| # | Nome | Tipo | Grupo | Preço | Aluguel |
+| # | Nome | Tipo | Grupo | Preço | Aluguel Base |
 |---|---|---|---|---|---|
 | 30 | 🚖 Aporte de Capital | Canto | — | — | — |
-| 31 | PCE — Cenários | Propriedade | PCE | $720 | $144 |
-| 32 | PCE — Abandono | Propriedade | PCE | $800 | $160 |
+| 31 | PCE — Cenários | Propriedade | PCE | $640 | $64 |
+| 32 | PCE — Abandono | Propriedade | PCE | $720 | $72 |
 | 33 | ✉️ Carta SST | Carta | — | — | — |
-| 34 | PCE — Treinamento | Propriedade | PCE | $880 | $176 |
-| 35 | SisGestão — Auditoria | Propriedade | SIST. GESTÃO | $720 | $144 |
+| 34 | PCE — Treinamento | Propriedade | PCE | $800 | $80 |
+| 35 | SisGestão — Auditoria | Propriedade | SIST. GESTÃO | $840 | $84 |
 | 36 | 🧯 Brigada de Emergência | SESMT | — | $600 | $100 |
 | 37 | 🕵️ Auditoria Interna | Auditoria | — | — | — |
 | 38 | ✉️ Carta SST | Carta | — | — | — |
-| 39 | SisGestão — Certificação | Propriedade | SIST. GESTÃO | $1.080 | $216 |
+| 39 | SisGestão — Certificação | Propriedade | SIST. GESTÃO | $1.040 | $104 |
 
 ---
 

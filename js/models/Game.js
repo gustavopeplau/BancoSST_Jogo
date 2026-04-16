@@ -1,7 +1,7 @@
-import { BOARD_DATA, GROUP_SIZE, SESMT_KEYS, SIDE_GROUPS } from '../data/boardData.js';
+import { BOARD_DATA, GROUP_SIZE, SESMT_KEYS, SIDE_GROUPS, LEVEL_RENT_MULTIPLIERS, LEVEL_UPGRADE_COST_PCT, LEVEL_NAMES, incrementSipatCount, getSipatMultiplier } from '../data/boardData.js';
 import { Player } from './Player.js';
 import { DiceLogic } from '../utils/DiceLogic.js';
-import { animateTokenHop, setSpaceOwnerTagDisplayHTMLBadgeVisual, setSipatBadgeOnSpace, setActiveSpace, enableBoardSpaceSelection, animateDiceOnBoard, setActiveToken } from '../ui/BoardManager.js';
+import { animateTokenHop, setSpaceOwnerTagDisplayHTMLBadgeVisual, setSipatBadgeOnSpace, removeSipatBadgeFromSpace, setActiveSpace, enableBoardSpaceSelection, animateDiceOnBoard, setActiveToken, updateSpaceRentDisplay } from '../ui/BoardManager.js';
 import { ModalManager } from '../ui/ModalManager.js';
 import { pullRandomCard } from '../data/cardsData.js';
 import { UIManager } from '../ui/UIManager.js';
@@ -82,7 +82,7 @@ export class GameEngine {
 
     updateUI() {
         UIManager.updatePlayerHUDsInfoInHTMLGlobalDisplayBaseDaGame(this.players, this.currentPlayerIndex);
-        const btn = document.getElementById('btn-roll');
+        const btn = document.getElementById('btn-roll-3d') || document.getElementById('btn-roll');
         UIManager.updateActionButton(btn, this.getCurrentPlayer());
         setActiveSpace(this.getCurrentPlayer().position);
         setActiveToken(this.getCurrentPlayer().id, this.players);
@@ -96,6 +96,7 @@ export class GameEngine {
         this.isAnimating = true;
         btnDiceElement.disabled = true;
         btnDiceElement.classList.remove('btn-turn-glow');
+        btnDiceElement.classList.add('roll-hidden');
 
         // Inicializa o áudio no primeiro clique (requer user gesture)
         SoundManager.init();
@@ -142,15 +143,13 @@ export class GameEngine {
     // ROLAGEM NORMAL
     // ═══════════════════════════════════════════════════════════
     async executeNormalRoll(player, btnDiceElement, uiTextResultElement) {
-        const diceInfo = DiceLogic.roll();
-
         // Som + animação visual dos dados no tabuleiro
         SoundManager.play('dice');
         uiTextResultElement.style.color = '#ffde59';
         uiTextResultElement.innerHTML = `<span class="dice-rolling">🎲</span> ROLANDO...`;
 
-        // Anima dados 3D sobre o tabuleiro (aguarda ~1.3s)
-        await animateDiceOnBoard(diceInfo.d1, diceInfo.d2, diceInfo.isDouble);
+        // Anima dados 3D e obtém resultado da FÍSICA (não pré-determinado)
+        const diceInfo = await animateDiceOnBoard();
 
         // Emite resultado dos dados
         this.bus.emit(GameEvents.DICE_ROLLED, {
@@ -159,7 +158,6 @@ export class GameEngine {
         });
 
         // Exibe resultado com efeito visual
-        JuiceFX.showDice(diceInfo.d1, diceInfo.d2, diceInfo.isDouble);
         uiTextResultElement.innerHTML =
             `<span class="juice-spin">🎲</span> [${diceInfo.d1} + ${diceInfo.d2}] = <strong>${diceInfo.total}</strong>`;
         uiTextResultElement.style.color = '#40a2ff';
@@ -218,6 +216,7 @@ export class GameEngine {
             if (this.autoEnableRollButton) {
                 btnDiceElement.disabled = false;
                 btnDiceElement.classList.add('btn-turn-glow');
+                btnDiceElement.classList.remove('roll-hidden');
             }
             this.isAnimating = false;
             this._emitStateChanged();
@@ -323,10 +322,9 @@ export class GameEngine {
         }
 
         // Tenta dupla nos dados
-        const diceInfo = DiceLogic.roll();
         SoundManager.play('dice');
         uiTextResultElement.innerHTML = `<span class="dice-rolling">🎲</span> ROLANDO...`;
-        await animateDiceOnBoard(diceInfo.d1, diceInfo.d2, diceInfo.isDouble);
+        const diceInfo = await animateDiceOnBoard();
         uiTextResultElement.innerHTML =
             `🎲 Tentativa de dupla: [${diceInfo.d1} + ${diceInfo.d2}]`;
 
@@ -379,7 +377,7 @@ export class GameEngine {
                     JuiceFX.floatNear(spaceEl || document.body, `🛡️ -25% ${purchaseInfo.sesmtDiscount}`, '#8ae37f');
                 }
                 if (player.money >= finalPrice) {
-                    const buy = await ModalManager.askToBuy(spaceData, finalPrice);
+                    const buy = await ModalManager.askToBuy(spaceData, finalPrice, player);
                     JuiceFX.disableFocus();
                     if (buy) {
                         const prevLevel = player.maturityLevel;
@@ -391,7 +389,13 @@ export class GameEngine {
                         if (spaceData.type === 'sesmt') {
                             player.sesmtOwned.push(spaceData.sesmt_key);
                         }
-                        setSpaceOwnerTagDisplayHTMLBadgeVisual(spaceData.id, player.color);
+                        // Propriedade começa no Nível 1 (Básico)
+                        if (spaceData.type === 'property') {
+                            player.propertyLevels[spaceData.id] = 1;
+                        }
+                        const lvl = player.propertyLevels[spaceData.id] || 0;
+                        setSpaceOwnerTagDisplayHTMLBadgeVisual(spaceData.id, player.color, lvl);
+                        updateSpaceRentDisplay(spaceData.id, spaceData.type === 'sesmt' ? 100 : spaceData.rent, lvl || 1);
                         // Flash de compra na casa
                         if (spaceEl) JuiceFX._applyClass(spaceEl, 'space-purchased');
                         this.updateMaturity(player);
@@ -406,6 +410,11 @@ export class GameEngine {
                         if (player.maturityLevel > prevLevel) {
                             this.bus.emit(GameEvents.MATURITY_CHANGED, { playerId: player.id, level: player.maturityLevel });
                             JuiceFX.showLevelUp(`Maturidade Nível ${player.maturityLevel}!`, '#f1dd38');
+                        }
+
+                        // Após comprar, oferecer evolução imediata (propriedades apenas)
+                        if (spaceData.type === 'property') {
+                            await this.offerUpgrade(player, spaceData);
                         }
                     }
                 } else {
@@ -423,13 +432,11 @@ export class GameEngine {
                 player.money -= rent;
                 JuiceFX.showMoney(-rent, spaceEl);
                 if (spaceEl) JuiceFX.shake(spaceEl);
-                const ownerReceives = ownerPlayer.maturityLevel >= 2
-                    ? Math.floor(rent * 1.10) : rent;
-                ownerPlayer.money += ownerReceives;
+                ownerPlayer.money += rent;
 
                 this.bus.emit(GameEvents.RENT_PAID, {
                     payerId: player.id, ownerId: ownerPlayer.id,
-                    spaceId: spaceData.id, rent, ownerReceives
+                    spaceId: spaceData.id, rent, ownerReceives: rent
                 });
                 this._emitStateChanged();
 
@@ -438,13 +445,23 @@ export class GameEngine {
                       `<br>Valor original: <s>$${rentInfo.rentBeforeDiscount}</s></span>`
                     : '';
 
+                const levelLabel = rentInfo.levelLabel || '';
+                const levelNote = levelLabel
+                    ? `<br><span style="font-size:.8rem;opacity:.7">📊 Nível: ${levelLabel}</span>`
+                    : '';
+
                 await ModalManager.showOkPrompt(
                     `🏢 Área Ocupada!`,
                     `Esta área pertence a <b style="color:${ownerPlayer.color}">${ownerPlayer.name}</b>.<br><br>` +
                     `<h2 style="color:#ff4747; background:#2a0a0a; padding:8px; border-radius:8px">-$${rent}</h2>` +
-                    discountNote
+                    discountNote + levelNote
                 );
                 await this.handleDebtCheck(player);
+            } else {
+                // Propriedade PRÓPRIA → oferecer evolução
+                if (spaceData.type === 'property') {
+                    await this.offerUpgrade(player, spaceData);
+                }
             }
         }
 
@@ -642,18 +659,18 @@ export class GameEngine {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // SIPAT (casa 20): dobra aluguel de uma propriedade permanentemente
-    // AGORA com seleção direta no tabuleiro!
+    // SIPAT (casa 20): multiplicador cumulativo em uma propriedade
+    // 1ª vez = 2×, 2ª vez = 3×, etc. A estrela muda de propriedade.
     // ═══════════════════════════════════════════════════════════
     async handleSIPAT(player) {
         const available = player.ownedPropertiesIds
             .map(id => BOARD_DATA[id])
-            .filter(s => s.type === 'property' && !s.doubledRent);
+            .filter(s => s.type === 'property');
 
         if (available.length === 0) {
             const reason = player.ownedPropertiesIds.length === 0
                 ? 'Você ainda não possui nenhuma propriedade.'
-                : 'Todas as suas propriedades já tiveram o aluguel dobrado anteriormente.';
+                : 'Você não possui propriedades elegíveis.';
             await ModalManager.showOkPrompt(
                 '🎉 SIPAT — Sem Elegíveis',
                 `<p>Você caiu na <b>SIPAT</b>, mas não pode usar o benefício.</p>` +
@@ -662,17 +679,24 @@ export class GameEngine {
             return;
         }
 
+        // Calcular o próximo multiplicador
+        incrementSipatCount();
+        const nextMultiplier = getSipatMultiplier();
+
         await ModalManager.showOkPrompt(
             '🎉 SIPAT — Semana de Prevenção!',
-            `<p style="margin-bottom:12px">Parabéns, <b style="color:${player.color}">${player.name}</b>! Você caiu na <b>SIPAT</b> e pode escolher <b>uma propriedade</b> para ter o aluguel <b style="color:#f1dd38">permanentemente dobrado</b>!</p>` +
-            `<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin-bottom:12px;text-align:left">` +
+            `<p style="margin-bottom:12px">Parabéns, <b style="color:${player.color}">${player.name}</b>! Você caiu na <b>SIPAT</b>!</p>` +
+            `<p>Escolha <b>uma propriedade sua</b> para receber a <b style="color:#f1dd38">⭐ Estrela SIPAT</b> com multiplicador <b style="color:#f1dd38">${nextMultiplier}×</b> sobre o aluguel!</p>` +
+            `<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin:12px 0;text-align:left">` +
             `<p style="font-size:.8rem;opacity:.7;margin-bottom:6px">📋 Propriedades elegíveis:</p>` +
-            available.map(s =>
-                `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">` +
-                `<span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></span>` +
-                `<span style="font-size:.85rem"><b>${s.name}</b> — Aluguel atual: <span style="color:#f1dd38">$${s.rent}</span> → Novo: <span style="color:#8ae37f">$${s.rent * 2}</span></span>` +
-                `</div>`
-            ).join('') +
+            available.map(s => {
+                const currentLevel = player.propertyLevels[s.id] || 1;
+                const baseRent = s.rent * LEVEL_RENT_MULTIPLIERS[currentLevel];
+                return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0">` +
+                    `<span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></span>` +
+                    `<span style="font-size:.85rem"><b>${s.name}</b> — Aluguel: <span style="color:#f1dd38">$${baseRent}</span> → SIPAT: <span style="color:#8ae37f">$${baseRent * nextMultiplier}</span></span>` +
+                    `</div>`;
+            }).join('') +
             `</div>` +
             `<p style="font-size:.9rem;color:#40a2ff">👆 Clique diretamente no tabuleiro na casa desejada!</p>`
         );
@@ -682,17 +706,34 @@ export class GameEngine {
 
         if (selectedId !== null && selectedId !== undefined) {
             const space = BOARD_DATA[selectedId];
-            const oldRent = space.rent;
-            BOARD_DATA[selectedId].doubledRent = true;
-            setSpaceOwnerTagDisplayHTMLBadgeVisual(selectedId, player.color);
+
+            // Remove estrela SIPAT anterior (de qualquer jogador/propriedade)
+            for (const p of this.players) {
+                if (p.sipatSpaceId !== null) {
+                    // Remove badge visual do espaço anterior
+                    removeSipatBadgeFromSpace(p.sipatSpaceId);
+                    BOARD_DATA[p.sipatSpaceId].sipatMultiplier = 1;
+                    p.sipatSpaceId = null;
+                }
+            }
+
+            // Aplica nova estrela
+            space.sipatMultiplier = nextMultiplier;
+            player.sipatSpaceId = selectedId;
+
+            setSpaceOwnerTagDisplayHTMLBadgeVisual(selectedId, player.color, player.propertyLevels[selectedId] || 1);
             setSipatBadgeOnSpace(selectedId);
-            this.bus.emit(GameEvents.SIPAT_ACTIVATED, { playerId: player.id, spaceId: selectedId });
+            this.bus.emit(GameEvents.SIPAT_ACTIVATED, { playerId: player.id, spaceId: selectedId, multiplier: nextMultiplier });
             this._emitStateChanged();
+
+            const currentLevel = player.propertyLevels[selectedId] || 1;
+            const newRent = space.rent * LEVEL_RENT_MULTIPLIERS[currentLevel] * nextMultiplier;
+
             await ModalManager.showOkPrompt(
-                '✅ SIPAT Aplicada!',
-                `<p>O aluguel de <b style="color:${space.color}">${space.name}</b> foi <b style="color:#f1dd38">permanentemente dobrado</b>!</p>` +
+                '✅ ⭐ SIPAT Aplicada!',
+                `<p><b style="color:${space.color}">${space.name}</b> recebeu a <b style="color:#f1dd38">⭐ Estrela SIPAT (${nextMultiplier}×)</b>!</p>` +
                 `<p style="margin-top:10px;font-size:1.2rem">` +
-                `<s style="opacity:.4">$${oldRent}</s> → <b style="color:#8ae37f;font-size:1.4rem">$${oldRent * 2}</b></p>`
+                `Aluguel com SIPAT: <b style="color:#8ae37f;font-size:1.4rem">$${newRent}</b></p>`
             );
         }
     }
@@ -768,12 +809,19 @@ export class GameEngine {
             
             if (soldId !== null && soldId !== undefined) {
                 const soldSpace = BOARD_DATA[soldId];
-                const sellPrice = Math.floor(soldSpace.price * 0.5);
+                // Valor de venda: 50% do investimento total (compra + upgrades)
+                const level = player.propertyLevels[soldId] || 1;
+                let totalInvested = soldSpace.price;
+                for (let lv = 2; lv <= level; lv++) {
+                    totalInvested += Math.floor(soldSpace.price * LEVEL_UPGRADE_COST_PCT[lv]);
+                }
+                const sellPrice = Math.floor(totalInvested * 0.5);
                 player.money += sellPrice;
                 
                 // Remove propriedade do jogador
                 player.ownedPropertiesIds = player.ownedPropertiesIds.filter(id => id !== soldId);
                 delete this.propertyOwnersDb[soldId];
+                delete player.propertyLevels[soldId];
                 
                 // Remove SESMT se aplicável
                 if (soldSpace.type === 'sesmt' && soldSpace.sesmt_key) {
@@ -783,9 +831,15 @@ export class GameEngine {
                 // Remove badge do tabuleiro
                 const badge = document.getElementById(`badge-${soldId}`);
                 if (badge) { badge.style.display = 'none'; badge.innerHTML = ''; }
+                // Limpa exibição de aluguel
+                updateSpaceRentDisplay(soldId, 0, 0);
                 
-                // Remove SIPAT se estava dobrado
-                if (soldSpace.doubledRent) soldSpace.doubledRent = false;
+                // Remove SIPAT se estava nesta propriedade
+                if (player.sipatSpaceId === soldId) {
+                    soldSpace.sipatMultiplier = 1;
+                    player.sipatSpaceId = null;
+                    removeSipatBadgeFromSpace(soldId);
+                }
                 
                 SoundManager.play('loss');
                 JuiceFX.showMoney(sellPrice, document.getElementById(`space-${soldId}`));
@@ -834,22 +888,23 @@ export class GameEngine {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // CÁLCULO DE ALUGUEL (monopólio + SIPAT + descontos SESMT)
+    // CÁLCULO DE ALUGUEL (nível evolução × monopólio × SIPAT × descontos SESMT)
     // ═══════════════════════════════════════════════════════════
     calculateRent(spaceData, payingPlayer, ownerPlayer) {
         // SESMT: aluguel fixo de $100
         if (spaceData.type === 'sesmt') return { rent: 100, sesmtDiscount: null };
 
-        let rent = spaceData.rent;
+        const level = ownerPlayer.propertyLevels[spaceData.id] || 1;
+        let rent = spaceData.rent * LEVEL_RENT_MULTIPLIERS[level];
 
-        // Monopólio: dobra o aluguel base
+        // Monopólio: dobra o aluguel
         const groupSize    = GROUP_SIZE[spaceData.group] || 999;
         const ownedInGroup = ownerPlayer.ownedPropertiesIds
             .filter(id => BOARD_DATA[id].group === spaceData.group).length;
         if (ownedInGroup >= groupSize) rent *= 2;
 
-        // SIPAT: dobra nesta propriedade específica
-        if (spaceData.doubledRent) rent *= 2;
+        // SIPAT: multiplicador cumulativo (2×, 3×, 4×…)
+        if (spaceData.sipatMultiplier > 1) rent *= spaceData.sipatMultiplier;
 
         let sesmtDiscount = null;
         const rentBeforeDiscount = rent;
@@ -866,7 +921,48 @@ export class GameEngine {
             sesmtDiscount = '🏥 Médico do Trabalho';
         }
 
-        return { rent, sesmtDiscount, rentBeforeDiscount };
+        const levelLabel = LEVEL_NAMES[level] || '';
+        return { rent, sesmtDiscount, rentBeforeDiscount, levelLabel };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // EVOLUÇÃO DE PROPRIEDADE (oferecer upgrade ao jogador)
+    // ═══════════════════════════════════════════════════════════
+    async offerUpgrade(player, spaceData) {
+        const currentLevel = player.propertyLevels[spaceData.id] || 1;
+        if (currentLevel >= 4) return; // Já no máximo
+
+        const nextLevel = currentLevel + 1;
+        const cost = Math.floor(spaceData.price * LEVEL_UPGRADE_COST_PCT[nextLevel]);
+        if (player.money < cost) return; // Sem dinheiro para evoluir
+
+        const currentRent = spaceData.rent * LEVEL_RENT_MULTIPLIERS[currentLevel];
+        const nextRent = spaceData.rent * LEVEL_RENT_MULTIPLIERS[nextLevel];
+        const levelDesc = spaceData.levels ? spaceData.levels[nextLevel] : '';
+
+        const doUpgrade = await ModalManager.askUpgrade(spaceData, currentLevel, nextLevel, cost, currentRent, nextRent, levelDesc, player);
+
+        if (doUpgrade) {
+            player.money -= cost;
+            player.propertyLevels[spaceData.id] = nextLevel;
+            SoundManager.play('buy');
+            JuiceFX.showMoney(-cost, document.getElementById(`space-${spaceData.id}`));
+            JuiceFX.showLevelUp(`${spaceData.name} → ${LEVEL_NAMES[nextLevel]}!`, spaceData.color || '#f1dd38');
+
+            this.bus.emit(GameEvents.PROPERTY_UPGRADED, {
+                playerId: player.id, spaceId: spaceData.id,
+                level: nextLevel, cost
+            });
+            this._emitStateChanged();
+            setSpaceOwnerTagDisplayHTMLBadgeVisual(spaceData.id, player.color, nextLevel);
+            updateSpaceRentDisplay(spaceData.id, spaceData.rent, nextLevel);
+            this.updateUI();
+
+            // Oferecer próximo nível em cadeia (se tiver dinheiro)
+            if (nextLevel < 4) {
+                await this.offerUpgrade(player, spaceData);
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -977,6 +1073,7 @@ export class GameEngine {
             if (btnDiceElement && this.autoEnableRollButton) {
                 btnDiceElement.disabled = false;
                 btnDiceElement.classList.add('btn-turn-glow');
+                btnDiceElement.classList.remove('roll-hidden');
             }
         }
         this.isAnimating = false;

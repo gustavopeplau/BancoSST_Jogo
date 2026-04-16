@@ -1,4 +1,4 @@
-import { createBoardElement, spawnTokensOnBoard, setSpaceOwnerTagDisplayHTMLBadgeVisual, animateTokenHop, setActiveSpace, animateDiceOnBoard, setSipatBadgeOnSpace } from './ui/BoardManager.js';
+import { createBoardElement, spawnTokensOnBoard, setSpaceOwnerTagDisplayHTMLBadgeVisual, animateTokenHop, setActiveSpace, animateDiceOnBoard, setSipatBadgeOnSpace, removeSipatBadgeFromSpace, updateSpaceRentDisplay } from './ui/BoardManager.js';
 import { GameEngine } from './models/Game.js';
 import { ModalManager } from './ui/ModalManager.js';
 import { SoundManager } from './utils/SoundManager.js';
@@ -8,6 +8,8 @@ import { NetworkManager } from './net/NetworkManager.js';
 import { JuiceFX } from './utils/JuiceFX.js';
 import { BOARD_DATA } from './data/boardData.js';
 import { BotManager } from './models/BotManager.js';
+
+import { Orchestrator3D } from './3d/Orchestrator3D.js';
 
 window.SST_GLOBAL_GAME = null;
 window.SST_EVENT_BUS   = globalBus;
@@ -44,6 +46,17 @@ function hideLobbyAndBootRules(playerConfigs, onlineMode = false) {
     // Inicializa áudio e modais
     SoundManager.init();
     ModalManager.init();
+
+    // ── 3D Isometric Mode ──
+    Orchestrator3D.init();
+    window._SST_3D = Orchestrator3D;
+
+    // Hide 2D panels in 3D mode
+    const leftHud = document.getElementById('left-hud');
+    const rightHud = document.getElementById('right-hud');
+    if (leftHud) leftHud.style.display = 'none';
+    if (rightHud) rightHud.style.display = 'none';
+
     createBoardElement();
 
     // Monta configs com cores, ícone SVG e emoji
@@ -56,6 +69,11 @@ function hideLobbyAndBootRules(playerConfigs, onlineMode = false) {
     }));
 
     SST_GLOBAL_GAME = new GameEngine(configs);
+
+    // Set game ref for 3D orchestrator
+    if (Orchestrator3D.is3D) {
+        Orchestrator3D.setGame(SST_GLOBAL_GAME);
+    }
 
     // Em modo online, o GameEngine NÃO reabilita o botão automaticamente
     if (onlineMode) {
@@ -72,8 +90,13 @@ function hideLobbyAndBootRules(playerConfigs, onlineMode = false) {
         });
     }
 
-    const btnRoll      = document.getElementById('btn-roll');
-    const diceResultEl = document.getElementById('dice-result');
+    // In 3D mode, use 3D UI controls; fallback to 2D
+    const btnRoll      = Orchestrator3D.is3D 
+        ? (document.getElementById('btn-roll-3d') || document.getElementById('btn-roll'))
+        : document.getElementById('btn-roll');
+    const diceResultEl = Orchestrator3D.is3D
+        ? (document.getElementById('dice-result-3d') || document.getElementById('dice-result'))
+        : document.getElementById('dice-result');
 
     // Glow inicial no botão
     btnRoll.classList.add('btn-turn-glow');
@@ -134,6 +157,65 @@ function hideLobbyAndBootRules(playerConfigs, onlineMode = false) {
     } else {
         // ── MODO LOCAL: lógica direta (sem rede) ──
         btnRoll.onclick = () => SST_GLOBAL_GAME.handleTurnRoll(btnRoll, diceResultEl);
+
+        // ── LOG LOCAL: registra eventos de jogo no chat/log ──
+        const game = SST_GLOBAL_GAME;
+        const _p = (data) => {
+            const pl = data?.playerId != null ? game.players.find(p => p.id === data.playerId) : null;
+            return { n: pl?.name || '', c: pl?.color || '#40a2ff', i: pl?.icon || '' };
+        };
+        globalBus.on(GameEvents.PROPERTY_BOUGHT, (d) => {
+            const { n, c, i } = _p(d);
+            addChatMessage('Jogo', c, `${i} ${n} comprou ${d.type === 'sesmt' ? 'profissional SESMT' : 'propriedade'} por $${d.price}`);
+        });
+        globalBus.on(GameEvents.RENT_PAID, (d) => {
+            const payer = game.players.find(p => p.id === d.payerId);
+            const owner = game.players.find(p => p.id === d.ownerId);
+            if (payer && owner) {
+                addChatMessage('Jogo', '#ff9800', `${payer.icon} ${payer.name} pagou $${d.amount} de aluguel para ${owner.icon} ${owner.name}`);
+            }
+        });
+        globalBus.on(GameEvents.CARD_DRAWN, (d) => {
+            const { n, c, i } = _p(d);
+            addChatMessage('Jogo', c, `${i} ${n} tirou uma carta SST!`);
+        });
+        globalBus.on(GameEvents.INTERDICTION_START, (d) => {
+            const { n } = _p(d);
+            addChatMessage('Jogo', '#ff4747', `⛓️ ${n} foi interditado!`);
+        });
+        globalBus.on(GameEvents.INTERDICTION_FREE, (d) => {
+            const { n } = _p(d);
+            addChatMessage('Jogo', '#4caf50', `✅ ${n} saiu da interdição! (${d.reason})`);
+        });
+        globalBus.on(GameEvents.MATURITY_CHANGED, (d) => {
+            const { n } = _p(d);
+            addChatMessage('Jogo', '#f1dd38', `⭐ ${n} subiu para Maturidade Nível ${d.level}!`);
+        });
+        globalBus.on(GameEvents.PLAYER_ELIMINATED, (d) => {
+            const { n } = _p(d);
+            addChatMessage('Jogo', '#ff4747', `💀 ${n} foi eliminado!`);
+        });
+        globalBus.on(GameEvents.SIPAT_ACTIVATED, (d) => {
+            const { n } = _p(d);
+            const sp = BOARD_DATA[d.spaceId];
+            addChatMessage('Jogo', '#f1dd38', `🎉 ${n} ativou SIPAT em ${sp?.name || '?'}! Aluguel dobrado!`);
+        });
+        globalBus.on(GameEvents.PROPERTY_SOLD, (d) => {
+            const { n, c, i } = _p(d);
+            addChatMessage('Jogo', c, `${i} ${n} vendeu propriedade por $${d.sellPrice}`);
+        });
+        globalBus.on(GameEvents.DICE_ROLLED, (d) => {
+            const { n, c, i } = _p(d);
+            addChatMessage('Jogo', c, `${i} ${n} tirou [${d.d1} + ${d.d2}] = ${d.total}${d.isDouble ? ' (DUPLA!)' : ''}`);
+        });
+        globalBus.on(GameEvents.PASSED_START, (d) => {
+            const { n, i } = _p(d);
+            addChatMessage('Jogo', '#8ae37f', `${i} ${n} passou pelo INÍCIO +$500`);
+        });
+        globalBus.on(GameEvents.TURN_ENDED, (d) => {
+            const next = game.players[game.currentPlayerIndex];
+            if (next) addChatMessage('Jogo', next.color, `Vez de ${next.icon} ${next.name}`);
+        });
     }
 
     SST_GLOBAL_GAME.updateUI();
@@ -190,8 +272,8 @@ function renderRoomPlayers(players) {
 }
 
 function addChatMessage(name, color, text) {
-    // Envia para o chat do lobby (se existir) E para o chat in-game (se existir)
-    ['chat-messages', 'game-chat-messages'].forEach(id => {
+    // Envia para o chat do lobby (se existir) E para o chat in-game (se existir) E para o log 3D
+    ['chat-messages', 'game-chat-messages', 'game-log-3d-messages'].forEach(id => {
         const container = document.getElementById(id);
         if (!container) return;
         const div = document.createElement('div');
@@ -241,6 +323,10 @@ function showOnlineRoom(roomCode) {
 
 /** Teleporta todos os tokens para as posições corretas (clientes após snapshot) */
 function syncTokenPositions(players) {
+    if (window._SST_3D) {
+        window._SST_3D.syncTokenPositions(players);
+        return;
+    }
     players.forEach(p => {
         const token = document.getElementById(`tkn-${p.id}`);
         if (!token) return;
@@ -258,7 +344,15 @@ function syncTokenPositions(players) {
 function syncPropertyBadges(game) {
     for (const [spaceId, owner] of Object.entries(game.propertyOwnersDb)) {
         if (owner) {
-            setSpaceOwnerTagDisplayHTMLBadgeVisual(parseInt(spaceId), owner.color);
+            const sid = parseInt(spaceId);
+            const level = owner.propertyLevels ? (owner.propertyLevels[sid] || 0) : 0;
+            setSpaceOwnerTagDisplayHTMLBadgeVisual(sid, owner.color, level);
+            const sp = BOARD_DATA[sid];
+            if (sp) updateSpaceRentDisplay(sid, sp.rent, level);
+            // Restaura badge SIPAT
+            if (owner.sipatSpaceId === sid) {
+                setSipatBadgeOnSpace(sid);
+            }
         }
     }
 }
@@ -293,6 +387,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         const canRoll = myTurn && !game.isAnimating;
         btnRoll.disabled = !canRoll;
         btnRoll.classList.toggle('btn-turn-glow', canRoll);
+        btnRoll.classList.toggle('roll-hidden', !canRoll);
         btnRoll.title = myTurn ? 'Sua vez! Clique para rolar.' : 'Aguardando outro jogador...';
 
         // Se é minha vez mas isAnimating ainda está true, checa periodicamente
@@ -303,6 +398,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
                     _rollCheckInterval = null;
                     btnRoll.disabled = false;
                     btnRoll.classList.add('btn-turn-glow');
+                    btnRoll.classList.remove('roll-hidden');
                     btnRoll.title = 'Sua vez! Clique para rolar.';
                 }
             }, 200);
@@ -316,6 +412,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
                         game.isAnimating = false;
                         btnRoll.disabled = false;
                         btnRoll.classList.add('btn-turn-glow');
+                        btnRoll.classList.remove('roll-hidden');
                     }
                 }
             }, 10000);
@@ -335,6 +432,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
         GameEvents.PLAYER_LANDED,
         GameEvents.PASSED_START,
         GameEvents.PROPERTY_BOUGHT,
+        GameEvents.PROPERTY_UPGRADED,
         GameEvents.RENT_PAID,
         GameEvents.CARD_DRAWN,
         GameEvents.CARD_RESOLVED,
@@ -436,6 +534,7 @@ function setupOnlineGameSync(btnRoll, diceResultEl) {
 
     globalBus.on('net:disconnected', () => {
         btnRoll.disabled = true;
+        btnRoll.classList.add('roll-hidden');
         btnRoll.title = 'Desconectado do servidor...';
     });
 
@@ -693,7 +792,6 @@ function handleRemoteVisualEvent(event, data, diceResultEl) {
             diceResultEl.innerHTML =
                 `<span class="juice-spin">🎲</span> ${pIcon} ${pName}: [${data.d1} + ${data.d2}] = <strong>${data.total}</strong>`;
             SoundManager.play('dice');
-            JuiceFX.showDice(data.d1, data.d2, data.isDouble);
             animateDiceOnBoard(data.d1, data.d2, data.isDouble);
             break;
 
@@ -735,9 +833,27 @@ function handleRemoteVisualEvent(event, data, diceResultEl) {
             SoundManager.play('buy');
             // Atualiza badge visual no tabuleiro
             if (data.spaceId != null) {
-                setSpaceOwnerTagDisplayHTMLBadgeVisual(data.spaceId, pColor);
+                const boughtPlayer = game.players.find(p => p.id === data.playerId);
+                const boughtLevel = boughtPlayer?.propertyLevels?.[data.spaceId] || 1;
+                setSpaceOwnerTagDisplayHTMLBadgeVisual(data.spaceId, pColor, boughtLevel);
+                const sp = BOARD_DATA[data.spaceId];
+                if (sp) updateSpaceRentDisplay(data.spaceId, sp.rent, boughtLevel);
             }
             break;
+
+        case GameEvents.PROPERTY_UPGRADED: {
+            const spaceName = BOARD_DATA[data.spaceId]?.name || '';
+            addChatMessage('Jogo', pColor,
+                `${pIcon} ${pName} evoluiu ${spaceName} para Nível ${data.level} por $${data.cost}`);
+            SoundManager.play('buy');
+            const upgPlayer = game.players.find(p => p.id === data.playerId);
+            if (data.spaceId != null) {
+                setSpaceOwnerTagDisplayHTMLBadgeVisual(data.spaceId, pColor, data.level);
+                const sp2 = BOARD_DATA[data.spaceId];
+                if (sp2) updateSpaceRentDisplay(data.spaceId, sp2.rent, data.level);
+            }
+            break;
+        }
 
         case GameEvents.RENT_PAID: {
             const payer = game.players.find(p => p.id === data.payerId);
@@ -773,30 +889,25 @@ function handleRemoteVisualEvent(event, data, diceResultEl) {
             break;
 
         case GameEvents.SIPAT_ACTIVATED:
-            // Sincroniza BOARD_DATA: marca aluguel dobrado
+            // Sincroniza BOARD_DATA: marca multiplicador SIPAT
             if (data.spaceId != null) {
-                BOARD_DATA[data.spaceId].doubledRent = true;
                 setSipatBadgeOnSpace(data.spaceId);
                 const spaceName = BOARD_DATA[data.spaceId]?.name || '';
-                addChatMessage('Jogo', '#f1dd38', `🎉 ${pName} ativou SIPAT em ${spaceName}! Aluguel dobrado!`);
+                addChatMessage('Jogo', '#f1dd38', `🎉 ${pName} ativou ⭐ SIPAT (${data.multiplier || ''}×) em ${spaceName}!`);
             }
             break;
 
         case GameEvents.PROPERTY_SOLD:
             if (data.spaceId != null) {
-                // Sincroniza BOARD_DATA: remove aluguel dobrado
-                if (BOARD_DATA[data.spaceId].doubledRent) {
-                    BOARD_DATA[data.spaceId].doubledRent = false;
-                }
+                // Sincroniza BOARD_DATA: remove SIPAT se presente
+                BOARD_DATA[data.spaceId].sipatMultiplier = 1;
                 // Remove badge do tabuleiro
                 const badge = document.getElementById(`badge-${data.spaceId}`);
                 if (badge) { badge.style.display = 'none'; badge.innerHTML = ''; }
                 // Remove SIPAT badge
-                const spEl = document.getElementById(`space-${data.spaceId}`);
-                if (spEl) {
-                    const sipatBadge = spEl.querySelector('.sipat-badge');
-                    if (sipatBadge) sipatBadge.remove();
-                }
+                removeSipatBadgeFromSpace(data.spaceId);
+                // Limpa exibição de aluguel
+                updateSpaceRentDisplay(data.spaceId, 0, 0);
                 addChatMessage('Jogo', pColor, `${pIcon} ${pName} vendeu propriedade por $${data.sellPrice}`);
                 SoundManager.play('loss');
             }
@@ -847,10 +958,17 @@ function handleRemoteVisualEvent(event, data, diceResultEl) {
 // ═══════════════════════════════════════════════════════════
 
 function setupAudioControls() {
-    const btnBgm = document.getElementById('btn-bgm-toggle');
-    const btnSfx = document.getElementById('btn-sfx-toggle');
-    const sliderMusic = document.getElementById('slider-music');
-    const sliderSfx = document.getElementById('slider-sfx');
+    // Support both 2D and 3D audio buttons
+    const btnBgm = document.getElementById('btn-bgm-toggle') || document.getElementById('btn-bgm-toggle-3d');
+    const btnSfx = document.getElementById('btn-sfx-toggle') || document.getElementById('btn-sfx-toggle-3d');
+    const sliderMusic = document.getElementById('slider-music') || document.getElementById('slider-music-3d');
+    const sliderSfx = document.getElementById('slider-sfx') || document.getElementById('slider-sfx-3d');
+
+    // Also wire up 3D audio controls if they exist
+    const btnBgm3d = document.getElementById('btn-bgm-toggle-3d');
+    const btnSfx3d = document.getElementById('btn-sfx-toggle-3d');
+    const sliderMusic3d = document.getElementById('slider-music-3d');
+    const sliderSfx3d = document.getElementById('slider-sfx-3d');
 
     if (btnBgm) {
         btnBgm.onclick = () => {
@@ -877,6 +995,27 @@ function setupAudioControls() {
     }
     if (sliderSfx) {
         sliderSfx.oninput = () => SoundManager.setSfxVolume(sliderSfx.value / 100);
+    }
+
+    // 3D controls (mirror the same logic)
+    if (btnBgm3d && btnBgm3d !== btnBgm) {
+        btnBgm3d.onclick = () => {
+            if (SoundManager._bgmPlaying) { SoundManager.stopMusic(); btnBgm3d.classList.add('muted'); }
+            else { SoundManager.startMusic(); btnBgm3d.classList.remove('muted'); }
+        };
+    }
+    if (btnSfx3d && btnSfx3d !== btnSfx) {
+        btnSfx3d.onclick = () => {
+            SoundManager.enabled = !SoundManager.enabled;
+            btnSfx3d.classList.toggle('muted', !SoundManager.enabled);
+            btnSfx3d.textContent = SoundManager.enabled ? '🔊' : '🔇';
+        };
+    }
+    if (sliderMusic3d && sliderMusic3d !== sliderMusic) {
+        sliderMusic3d.oninput = () => SoundManager.setMusicVolume(sliderMusic3d.value / 100);
+    }
+    if (sliderSfx3d && sliderSfx3d !== sliderSfx) {
+        sliderSfx3d.oninput = () => SoundManager.setSfxVolume(sliderSfx3d.value / 100);
     }
 }
 

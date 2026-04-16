@@ -28,7 +28,7 @@ export class JuiceFX {
 
     // ═══════════ SCREEN SHAKE ══════════════════════════
     static screenShake(intensity = 4, duration = 300) {
-        const board = document.getElementById('board');
+        const board = document.getElementById('board') || document.getElementById('board-3d-container');
         if (!board) return;
         // Preservar o scale atual (mobile) para não perder ao resetar
         const currentTransform = board.style.transform || '';

@@ -8,7 +8,18 @@
     <link rel="stylesheet" href="css/ui.css">
     <link rel="stylesheet" href="css/board.css">
     <link rel="stylesheet" href="css/juice.css">
+    <link rel="stylesheet" href="css/hud3d.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" defer></script>
+    <!-- Import maps for Three.js and Cannon-es (ES modules from CDN) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+            "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+        }
+    }
+    </script>
     <script>
         // URL do servidor multiplayer (WebSocket).
         // Em dev local (node server/index.js), o servidor roda no mesmo origin.
@@ -56,7 +67,7 @@
             </div>
             <div class="input-group" id="player-inputs">
                 <div class="player-row" data-idx="0">
-                    <input type="text" class="player-name-input" placeholder="Jogador 1" value="Corretor de SESMT">
+                    <input type="text" class="player-name-input" placeholder="Jogador 1" value="">
                     <div class="pawn-selector">
                         <button type="button" class="pawn-btn selected" data-pawn="capacete" title="Capacete">
                             <svg viewBox="0 0 32 32" width="28" height="28"><path d="M4 22h24v3H4z" fill="currentColor" opacity=".8"/><path d="M7 22c0-6 3.5-12 9-12s9 6 9 12" fill="currentColor" opacity=".3"/><path d="M7 22c0-6 3.5-12 9-12s9 6 9 12" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="10" x2="16" y2="22" stroke="currentColor" stroke-width="1.5" opacity=".4"/></svg>
@@ -73,7 +84,7 @@
                     </div>
                 </div>
                 <div class="player-row" data-idx="1">
-                    <input type="text" class="player-name-input" placeholder="Jogador 2" value="Chefe de Planta">
+                    <input type="text" class="player-name-input" placeholder="Jogador 2" value="">
                     <div class="pawn-selector">
                         <button type="button" class="pawn-btn" data-pawn="capacete" title="Capacete">
                             <svg viewBox="0 0 32 32" width="28" height="28"><path d="M4 22h24v3H4z" fill="currentColor" opacity=".8"/><path d="M7 22c0-6 3.5-12 9-12s9 6 9 12" fill="currentColor" opacity=".3"/><path d="M7 22c0-6 3.5-12 9-12s9 6 9 12" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="10" x2="16" y2="22" stroke="currentColor" stroke-width="1.5" opacity=".4"/></svg>
@@ -196,6 +207,29 @@
 
     <!-- AREA VIRTUAL JOGOS — 3 colunas: HUD Esq | Tabuleiro | HUD Dir -->
     <div id="game-wrapper">
+
+        <!-- 3D Canvas Container (isometric board) -->
+        <div id="board-3d-container"></div>
+
+        <!-- 3D HUD: Controls (bottom center) -->
+        <div class="hud-3d-dice-info glass-panel" id="hud-3d-dice-info">
+            <h1 id="dice-result-3d" class="hud-3d-dice-result" style="text-align:center;"></h1>
+        </div>
+        <button id="btn-roll-3d" class="btn-roll-center">🎲 Rolar os Dados</button>
+
+        <!-- 3D HUD: Audio (top center) -->
+        <div class="hud-3d-audio glass-panel" id="hud-3d-audio">
+            <button id="btn-bgm-toggle-3d" class="btn-audio" title="Ligar/Desligar Música">🎵</button>
+            <input type="range" id="slider-music-3d" min="0" max="100" value="12" title="Volume Música">
+            <button id="btn-sfx-toggle-3d" class="btn-audio" title="Ligar/Desligar SFX">🔊</button>
+            <input type="range" id="slider-sfx-3d" min="0" max="100" value="25" title="Volume SFX">
+        </div>
+
+        <!-- 3D HUD: Game Log (left side) -->
+        <div class="hud-3d-log glass-panel" id="hud-3d-log">
+            <div class="hud-3d-log-header">📋 Log do Jogo</div>
+            <div id="game-log-3d-messages" class="chat-messages"></div>
+        </div>
 
         <aside id="left-hud" class="dashboard-panel">
             <div class="panel-header">📋 Jogadores</div>

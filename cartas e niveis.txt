@@ -1,0 +1,356 @@
+cartas e níveis:
+CIPA — Comissão Interna de Prevenção de Acidentes e de Assédio
+🏠 Casa: Eleição
+
+Nível 1 – Básico: 
+Eleições realizadas apenas para cumprir exigência legal, com baixa divulgação e participação mínima.
+ 
+Nível 2 – Intermediário: 
+Processo eleitoral organizado, com divulgação interna adequada e participação razoável dos trabalhadores. 
+
+Nível 3 – Avançado: 
+Eleição transparente, com ampla comunicação, engajamento dos colaboradores e estímulo à diversidade de representantes. 
+
+Nível 4 – Excelência: 
+Eleição vista como oportunidade estratégica de engajamento, com participação massiva, auditoria interna de transparência e valorização dos eleitos como líderes de segurança. 
+
+CIPA — Comissão Interna de Prevenção de Acidentes e de Assédio
+🏠 Casa: Treinamento 
+
+Nível 1 – Básico: 
+Treinamento realizado apenas para cumprir a legislação, com conteúdo genérico e pouco aplicado à realidade da empresa.
+ 
+Nível 2 – Intermediário: 
+Treinamento estruturado, com instrutores preparados e exemplos práticos relacionados ao ambiente de trabalho. 
+
+Nível 3 – Avançado: 
+Treinamento interativo, com dinâmicas, estudos de caso e acompanhamento da aplicação prática dos conhecimentos. 
+
+Nível 4 – Excelência: 
+Treinamento contínuo e personalizado, com reciclagens periódicas, integração com outros programas de segurança e avaliação de impacto na redução de riscos.
+
+🔵 AET — Análise Ergonômica do Trabalho
+🏠 Casa: Levantamento das Atividades
+
+Nível 1 – Básico:
+Levantamento superficial das atividades, sem considerar variações reais do trabalho.
+
+Nível 2 – Intermediário:
+Mapeamento das principais tarefas com observação direta dos trabalhadores.
+
+Nível 3 – Avançado:
+Levantamento detalhado incluindo variações operacionais e participação dos trabalhadores.
+
+Nível 4 – Excelência:
+Mapeamento completo e contínuo das atividades, integrado com indicadores e melhorias constantes.
+
+🏠 Casa: Avaliação Ergonômica dos Postos
+
+Nível 1 – Básico:
+Avaliação genérica, baseada apenas em normas, sem análise aprofundada.
+
+Nível 2 – Intermediário:
+Avaliação com medições básicas e identificação dos principais riscos ergonômicos.
+
+Nível 3 – Avançado:
+Avaliação detalhada com análise biomecânica e organizacional do trabalho.
+
+Nível 4 – Excelência:
+Avaliação integrada com redesign dos postos e foco em conforto, produtividade e bem-estar.
+
+🏠 Casa: Relatório da AET
+
+Nível 1 – Básico:
+Relatório simples, com poucas recomendações práticas.
+
+Nível 2 – Intermediário:
+Relatório estruturado com recomendações aplicáveis.
+
+Nível 3 – Avançado:
+Relatório completo com plano de ação e priorização de riscos.
+
+Nível 4 – Excelência:
+Relatório estratégico integrado à gestão da empresa, com acompanhamento de resultados.
+
+🌸 PCA — Programa de Conservação Auditiva
+🏠 Casa: Exposição ao Ruído
+
+Nível 1 – Básico:
+Avaliação pontual e sem continuidade dos níveis de ruído.
+
+Nível 2 – Intermediário:
+Medições periódicas com identificação das áreas críticas.
+
+Nível 3 – Avançado:
+Monitoramento contínuo com análise detalhada das exposições.
+
+Nível 4 – Excelência:
+Sistema integrado de monitoramento com controle em tempo real e ações preventivas.
+
+🏠 Casa: Audiometria
+
+Nível 1 – Básico:
+Exames realizados apenas para cumprimento legal.
+
+Nível 2 – Intermediário:
+Exames periódicos com controle básico dos resultados.
+
+Nível 3 – Avançado:
+Análise evolutiva dos exames com identificação precoce de perdas auditivas.
+
+Nível 4 – Excelência:
+Gestão completa da saúde auditiva com ações preventivas personalizadas.
+
+🏠 Casa: Controle
+
+Nível 1 – Básico:
+Uso de EPI sem controle efetivo.
+
+Nível 2 – Intermediário:
+Implementação de algumas medidas de controle coletivo.
+
+Nível 3 – Avançado:
+Controle eficaz com redução significativa da exposição.
+
+Nível 4 – Excelência:
+Eliminação ou neutralização do risco com soluções de engenharia.
+
+🟠 PCMSO — Programa de Controle Médico de Saúde Ocupacional
+🏠 Casa: Planejamento
+
+Nível 1 – Básico:
+Planejamento genérico, sem ligação com os riscos.
+
+Nível 2 – Intermediário:
+Planejamento baseado nos principais riscos identificados.
+
+Nível 3 – Avançado:
+Planejamento integrado com outros programas de SST.
+
+Nível 4 – Excelência:
+Planejamento estratégico com foco em prevenção e promoção da saúde.
+
+🏠 Casa: Exames
+
+Nível 1 – Básico:
+Exames realizados apenas para cumprimento legal.
+
+Nível 2 – Intermediário:
+Exames organizados com controle básico.
+
+Nível 3 – Avançado:
+Monitoramento da saúde com análise de tendências.
+
+Nível 4 – Excelência:
+Gestão proativa da saúde com intervenções preventivas.
+
+🏠 Casa: Relatório Anual
+
+Nível 1 – Básico:
+Relatório simples e descritivo.
+
+Nível 2 – Intermediário:
+Relatório com análise básica de dados.
+
+Nível 3 – Avançado:
+Relatório com indicadores e recomendações.
+
+Nível 4 – Excelência:
+Relatório estratégico com impacto direto na gestão da empresa.
+
+🔴 PGR — Programa de Gerenciamento de Riscos
+🏠 Casa: Identificação de Perigos
+
+Nível 1 – Básico:
+Identificação superficial dos perigos.
+
+Nível 2 – Intermediário:
+Identificação dos principais riscos.
+
+Nível 3 – Avançado:
+Identificação detalhada com participação dos trabalhadores.
+
+Nível 4 – Excelência:
+Sistema contínuo de identificação com revisão constante.
+
+🏠 Casa: Inventário de Riscos
+
+Nível 1 – Básico:
+Inventário incompleto e desatualizado.
+
+Nível 2 – Intermediário:
+Inventário estruturado com classificação básica.
+
+Nível 3 – Avançado:
+Inventário detalhado com priorização de riscos.
+
+Nível 4 – Excelência:
+Inventário dinâmico integrado à gestão da empresa.
+
+🏠 Casa: Plano de Ação
+
+Nível 1 – Básico:
+Plano genérico sem acompanhamento.
+
+Nível 2 – Intermediário:
+Plano com ações definidas.
+
+Nível 3 – Avançado:
+Plano com metas, prazos e responsáveis.
+
+Nível 4 – Excelência:
+Plano estratégico com monitoramento contínuo e melhoria constante.
+
+🟡 LTCAT — Laudo Técnico das Condições Ambientais do Trabalho
+🏠 Casa: Avaliação de Agentes Nocivos
+
+Nível 1 – Básico:
+Identificação superficial dos agentes, sem medições adequadas.
+
+Nível 2 – Intermediário:
+Avaliação com medições básicas dos principais agentes.
+
+Nível 3 – Avançado:
+Avaliação detalhada com uso de metodologia técnica adequada.
+
+Nível 4 – Excelência:
+Monitoramento contínuo com dados confiáveis e suporte à tomada de decisão.
+
+🏠 Casa: Caracterização da Exposição
+
+Nível 1 – Básico:
+Caracterização genérica da exposição, sem precisão técnica.
+
+Nível 2 – Intermediário:
+Análise com dados básicos de intensidade e tempo de exposição.
+
+Nível 3 – Avançado:
+Caracterização detalhada com base em critérios técnicos e legais.
+
+Nível 4 – Excelência:
+Caracterização precisa, integrada com gestão de riscos e decisões estratégicas.
+
+🏠 Casa: Emissão do LTCAT
+
+Nível 1 – Básico:
+Laudo elaborado apenas para cumprimento legal.
+
+Nível 2 – Intermediário:
+Laudo estruturado com informações técnicas básicas.
+
+Nível 3 – Avançado:
+Laudo completo, bem fundamentado e atualizado.
+
+Nível 4 – Excelência:
+Laudo utilizado como ferramenta estratégica para gestão e prevenção.
+
+🟢 PCE — Plano de Controle de Emergências
+🏠 Casa: Análise de Cenários de Emergência
+
+Nível 1 – Básico:
+Identificação superficial dos cenários de emergência.
+
+Nível 2 – Intermediário:
+Mapeamento dos principais cenários possíveis.
+
+Nível 3 – Avançado:
+Análise detalhada com avaliação de impacto e probabilidade.
+
+Nível 4 – Excelência:
+Análise integrada com gestão de riscos e planos preventivos.
+
+🏠 Casa: Plano de Abandono
+
+Nível 1 – Básico:
+Plano simples, pouco conhecido pelos trabalhadores.
+
+Nível 2 – Intermediário:
+Plano definido com rotas de fuga sinalizadas.
+
+Nível 3 – Avançado:
+Plano bem estruturado e divulgado a todos.
+
+Nível 4 – Excelência:
+Plano otimizado, testado e constantemente atualizado.
+
+🏠 Casa: Treinamentos e Simulados
+
+Nível 1 – Básico:
+Treinamentos esporádicos e pouco efetivos.
+
+Nível 2 – Intermediário:
+Treinamentos periódicos com participação razoável.
+
+Nível 3 – Avançado:
+Simulados realistas com boa participação dos trabalhadores.
+
+Nível 4 – Excelência:
+Treinamentos contínuos, com alto engajamento e melhoria constante.
+
+🔵 SISTEMA DE GESTÃO DE SST
+🏠 Casa: Auditoria do Sistema
+
+Nível 1 – Básico:
+Auditorias realizadas apenas para cumprimento formal.
+
+Nível 2 – Intermediário:
+Auditorias estruturadas com identificação de falhas.
+
+Nível 3 – Avançado:
+Auditorias completas com planos de ação definidos.
+
+Nível 4 – Excelência:
+Auditorias estratégicas focadas em melhoria contínua.
+
+🏠 Casa: Certificação
+
+Nível 1 – Básico:
+Empresa sem certificação formal.
+
+Nível 2 – Intermediário:
+Processo de adequação para certificação.
+
+Nível 3 – Avançado:
+Certificação obtida e mantida.
+
+Nível 4 – Excelência:
+Certificação consolidada com reconhecimento e melhoria contínua.
+
+👷 CASAS DE PROFISSIONAIS (opcional, mas recomendo incluir)
+
+Isso aqui melhora MUITO o jogo se você usar evolução também:
+
+🏠 Técnico de Segurança do Trabalho
+
+Nível 1 – Básico: atuação operacional
+Nível 2 – Intermediário: atuação preventiva
+Nível 3 – Avançado: atuação estratégica
+Nível 4 – Excelência: liderança em SST
+
+🏠 Técnico em Enfermagem do Trabalho
+
+Nível 1 – Básico: atendimento simples
+Nível 2 – Intermediário: apoio ao PCMSO
+Nível 3 – Avançado: monitoramento de saúde
+Nível 4 – Excelência: prevenção ativa
+
+🏠 Engenheiro de Segurança
+
+Nível 1 – Básico: suporte técnico
+Nível 2 – Intermediário: análise de riscos
+Nível 3 – Avançado: gestão de projetos
+Nível 4 – Excelência: estratégia organizacional
+
+🏠 Médico do Trabalho
+
+Nível 1 – Básico: exames ocupacionais
+Nível 2 – Intermediário: acompanhamento clínico
+Nível 3 – Avançado: análise epidemiológica
+Nível 4 – Excelência: gestão de saúde corporativa
+
+🏠 Brigada de Emergência
+
+Nível 1 – Básico: formação inicial
+Nível 2 – Intermediário: atuação em simulados
+Nível 3 – Avançado: resposta eficiente
+Nível 4 – Excelência: atuação de alta performance

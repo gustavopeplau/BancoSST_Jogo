@@ -1,5 +1,11 @@
 import { SoundManager } from '../utils/SoundManager.js';
 import { shuffleArray } from '../utils/helpers.js';
+import { LEVEL_NAMES, LEVEL_UPGRADE_COST_PCT } from '../data/boardData.js';
+
+// Helper para acesso em showSellProperty (evita import circular)
+function require_boardData_cached() {
+    return { LEVEL_UPGRADE_COST_PCT, LEVEL_NAMES };
+}
 
 export class ModalManager {
 
@@ -48,8 +54,23 @@ export class ModalManager {
         'SIST.GESTÃO':  'Sistema de Gestão de Segurança e Saúde no Trabalho',
     };
 
+    // Resolve CSS var() colors to hex values matching the board
+    static _resolveColor(val) {
+        const map = {
+            'var(--color-cipa)':    '#4caf50',
+            'var(--color-aet)':     '#8d6e63',
+            'var(--color-pca)':     '#42a5f5',
+            'var(--color-pcmso)':   '#ef5350',
+            'var(--color-pgr)':     '#ff7043',
+            'var(--color-ltcat)':   '#7e57c2',
+            'var(--color-pce)':     '#8f603c',
+            'var(--color-gestao)':  '#1c1c1c',
+        };
+        return map[val] || val;
+    }
+
     // ── Comprar propriedade ou profissional SESMT ─────────────
-    static askToBuy(spaceData, price) {
+    static askToBuy(spaceData, price, player) {
         return new Promise(resolve => {
             // Monta nome formatado (programa negrito + sub)
             let mainName = spaceData.name;
@@ -61,7 +82,7 @@ export class ModalManager {
             }
 
             const isSesmt = spaceData.type === 'sesmt';
-            const colorVal = spaceData.color || '#78909c';
+            const colorVal = this._resolveColor(spaceData.color || '#78909c');
             const groupLabel = isSesmt
                 ? 'Profissional SESMT'
                 : (this.PROGRAM_FULL_NAMES[spaceData.group] || spaceData.group || '');
@@ -98,6 +119,7 @@ export class ModalManager {
                             <span class="prop-stat-value" style="font-size:.75rem">×2 aluguel</span>
                         </div>` : ''}
                     </div>
+                    ${player ? `<p style="font-size:.8rem;opacity:.7;margin-top:10px">💰 Seu saldo: <b style="color:#8ae37f">$${player.money.toLocaleString('pt-BR')}</b> → após compra: <b style="color:${player.money - price >= 0 ? '#f1dd38' : '#ff4747'}">$${(player.money - price).toLocaleString('pt-BR')}</b></p>` : ''}
                 </div>
             </div>`;
 
@@ -206,7 +228,7 @@ export class ModalManager {
                     `<span class="prop-select-dot" style="background:${sp.color || '#555'}"></span>` +
                     `<span class="prop-select-info">` +
                     `<b>${sp.name}</b>` +
-                    `<span class="prop-select-sub">Aluguel: $${sp.rent}${sp.doubledRent ? ' (já dobrado)' : ''}</span>` +
+                    `<span class="prop-select-sub">Aluguel base: $${sp.rent}${sp.sipatMultiplier > 1 ? ' ⭐SIPAT' : ''}</span>` +
                     `</span>`;
                 btn.onclick = () => { this.closeModal(); resolve(sp.id); };
                 this.actionsDiv.appendChild(btn);
@@ -270,6 +292,64 @@ export class ModalManager {
         });
     }
 
+    // ── Evolução de propriedade ──────────────────────────────
+    static askUpgrade(spaceData, currentLevel, nextLevel, cost, currentRent, nextRent, levelDesc, player) {
+        return new Promise(resolve => {
+            const colorVal = this._resolveColor(spaceData.color || '#78909c');
+            const currentLabel = LEVEL_NAMES[currentLevel];
+            const nextLabel = LEVEL_NAMES[nextLevel];
+
+            // Barras de nível visual
+            const levelBars = [1,2,3,4].map(lv => {
+                const filled = lv <= currentLevel ? 'background:#40a2ff' : (lv === nextLevel ? 'background:#f1dd38;animation:pulse 1s infinite' : 'background:#333');
+                return `<div style="flex:1;height:8px;border-radius:4px;${filled};margin:0 2px"></div>`;
+            }).join('');
+
+            const descHtml = levelDesc
+                ? `<p style="font-style:italic;font-size:.85rem;opacity:.8;margin:10px 0;border-left:3px solid ${colorVal};padding-left:10px">${levelDesc}</p>`
+                : '';
+
+            const cardHtml = `
+            <div class="prop-modal-card">
+                <div class="prop-card-header" style="background:${colorVal}">
+                    <span class="prop-card-group">📈 Evolução</span>
+                    <span class="prop-card-title">${spaceData.name}</span>
+                    <span class="prop-card-subtitle">${currentLabel} → ${nextLabel}</span>
+                </div>
+                <div class="prop-card-body">
+                    <div style="display:flex;align-items:center;gap:4px;margin:10px 0">${levelBars}</div>
+                    ${descHtml}
+                    <div class="prop-card-stats">
+                        <div class="prop-stat">
+                            <span class="prop-stat-label">Custo</span>
+                            <span class="prop-stat-value" style="color:#ff4747">$${cost}</span>
+                        </div>
+                        <div class="prop-stat">
+                            <span class="prop-stat-label">Aluguel Atual</span>
+                            <span class="prop-stat-value">$${currentRent}</span>
+                        </div>
+                        <div class="prop-stat">
+                            <span class="prop-stat-label">Aluguel Novo</span>
+                            <span class="prop-stat-value" style="color:#8ae37f">$${nextRent}</span>
+                        </div>
+                    </div>
+                    <p style="font-size:.75rem;opacity:.6;margin-top:8px">Saldo: $${player.money.toLocaleString('pt-BR')}</p>
+                </div>
+            </div>`;
+
+            this._open(`🔧 Evoluir Propriedade?`, cardHtml);
+            const buyBtn = document.createElement('button');
+            const passBtn = document.createElement('button');
+            buyBtn.className = 'btn-buy';
+            buyBtn.innerHTML = `⬆️ Evoluir para ${nextLabel} — $${cost}`;
+            passBtn.className = 'btn-pass';
+            passBtn.textContent = 'Agora não';
+            buyBtn.onclick = () => { SoundManager.play('click'); this.closeModal(); resolve(true); };
+            passBtn.onclick = () => { SoundManager.play('click'); this.closeModal(); resolve(false); };
+            this.actionsDiv.append(buyBtn, passBtn);
+        });
+    }
+
     // ── Venda forçada de propriedade (sistema de dívida) ──────
     static showSellProperty(player, properties, debt) {
         return new Promise(resolve => {
@@ -280,8 +360,16 @@ export class ModalManager {
                 `Dívida restante: <b style="color:#ff4747">$${Math.abs(player.money).toLocaleString('pt-BR')}</b><br><br>` +
                 `Venda propriedades para quitar a dívida:`
             );
+            // Import dynamically to avoid circular — values available at runtime
+            const { LEVEL_UPGRADE_COST_PCT: LUCP, LEVEL_NAMES: LN } = require_boardData_cached();
             properties.forEach(sp => {
-                const sellPrice = Math.floor(sp.price * 0.5);
+                const level = player.propertyLevels[sp.id] || 1;
+                let totalInvested = sp.price;
+                for (let lv = 2; lv <= level; lv++) {
+                    totalInvested += Math.floor(sp.price * (LUCP ? LUCP[lv] : 0));
+                }
+                const sellPrice = Math.floor(totalInvested * 0.5);
+                const levelLabel = LN ? LN[level] : `Nv.${level}`;
                 const btn = document.createElement('button');
                 btn.className = 'btn-sell-prop';
                 btn.style.borderLeftColor = sp.color || '#555';
@@ -289,7 +377,7 @@ export class ModalManager {
                     `<span class="prop-select-dot" style="background:${sp.color || '#555'}"></span>` +
                     `<span class="prop-select-info">` +
                     `<b>${sp.name}</b>` +
-                    `<span class="prop-select-sub">${sp.group || sp.type}</span>` +
+                    `<span class="prop-select-sub">${sp.group || sp.type} — ${levelLabel}</span>` +
                     `</span>` +
                     `<span class="sell-price-tag">+$${sellPrice}</span>`;
                 btn.onclick = () => { this.closeModal(); resolve(sp.id); };
