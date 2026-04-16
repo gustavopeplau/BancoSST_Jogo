@@ -3,6 +3,10 @@
     --bg-gradient: radial-gradient(circle at center, #2e445a 0%, #0d1621 100%);
     --panel-bg: rgba(13, 24, 38, 0.7);
     --glass-border: rgba(255, 255, 255, 0.1);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
     
     --color-cipa: #4caf50; --color-aet: #8d6e63; --color-pca: #42a5f5;
     --color-pcmso: #ef5350; --color-pgr: #ff7043; --color-ltcat: #7e57c2;
@@ -316,19 +320,21 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
     #right-hud .panel-header { display: none; }
     .dashboard-panel { min-width: 0; border-radius: 0; }
     #roll-area { margin-top: 0; padding-top: 6px; border-top: none; }
-    #roll-area #dice-result { font-size: 0.9rem !important; margin-bottom: 6px; }
+    #roll-area #dice-result { font-size: 0.9rem !important; margin-bottom: 4px; }
     #audio-controls { margin-bottom: 4px; }
-    #game-chat { max-height: 100px; }
-    #game-chat .chat-messages { max-height: 60px; }
+    #game-chat { max-height: 80px; }
+    #game-chat .chat-messages { max-height: 50px; }
 
     /* Cards de jogador mais compactos */
-    .player-hud-card { padding: 6px 8px; gap: 2px; }
-    .phud-avatar-sm { width: 24px; height: 24px; font-size: 0.9rem; }
-    .phud-name-line span { font-size: .75rem !important; }
-    .phud-stats-line { font-size: .7rem; }
+    .player-hud-card { padding: 5px 8px; gap: 2px; }
+    .phud-avatar-sm { width: 22px; height: 22px; font-size: 0.85rem; }
+    .phud-name-line span { font-size: .72rem !important; }
+    .phud-stats-line { font-size: .65rem; }
+    .phud-deck-grouped { display: none; }
+    .phud-sesmt-inline { display: none; }
 }
 
-/* ── PORTRAIT: tabuleiro em cima, dados + jogadores embaixo ─ */
+/* ── PORTRAIT: tabuleiro em cima, info + controles embaixo ─ */
 @media (max-width: 900px) and (orientation: portrait) {
     body { overflow: auto; overflow-x: hidden; align-items: flex-start; }
 
@@ -345,36 +351,41 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
         overflow: visible; padding: 4px 0;
     }
 
-    /* 2) Meu jogador (sempre expandido, logo após tabuleiro) */
+    /* 2) Jogadores compactos — strip horizontal */
     #left-hud {
         order: 2; width: 100%; min-width: 0;
+        padding: 4px 8px;
+        background: var(--panel-bg);
+        border-top: 1px solid var(--glass-border);
+        border-left: none; border-right: none; border-bottom: none;
+        max-height: none; overflow: visible;
+    }
+    #left-hud .panel-header { display: none; }
+    #left-hud .player-panel-col {
+        flex-direction: row; flex-wrap: wrap; gap: 4px;
+    }
+    #left-hud .player-panel-col .player-hud-card {
+        flex: 1 1 calc(50% - 4px); min-width: 140px;
+        opacity: 1; padding: 4px 8px;
+    }
+    /* Esconder detalhes verbosos no strip horizontal */
+    #left-hud .phud-maturity-row { display: none; }
+    #left-hud .phud-groups-row { display: none; }
+    #left-hud .phud-bar-row { display: none; }
+
+    /* 3) Controles (rolar dados + áudio + log + chat) */
+    #right-hud {
+        order: 3; width: 100%; min-width: 0;
         padding: 6px 10px;
         background: var(--panel-bg);
         border-top: 1px solid var(--glass-border);
         border-left: none; border-right: none; border-bottom: none;
     }
-    #left-hud .panel-header { font-size: .65rem; }
-    #left-hud .player-panel-col {
-        flex-direction: column; gap: 6px;
-    }
-    #left-hud .player-panel-col .player-hud-card {
-        flex: none; width: 100%; opacity: 1;
-    }
-
-    /* 3) Controles (rolar dados + áudio + rivais + chat) */
-    #right-hud {
-        order: 3; width: 100%; min-width: 0;
-        padding: 8px 10px;
-        background: var(--panel-bg);
-        border-top: 1px solid var(--glass-border);
-        border-left: none; border-right: none; border-bottom: none;
-    }
-    /* Rivais colapsáveis via JS no right-panel */
     #right-hud #right-panel { display: flex; flex-direction: column; gap: 4px; }
 
     /* Botão de rolar com toque fácil */
     #roll-area .btn-super {
-        min-height: 48px; font-size: 1.1rem;
+        min-height: 52px; font-size: 1.15rem;
     }
 }
 
@@ -407,7 +418,6 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
         border-top: none; border-right: none; border-bottom: none;
         display: flex; flex-direction: column;
     }
-    /* Mostrar cards de jogadores no right-hud em landscape */
     #right-hud #right-panel {
         display: flex; flex-direction: column; gap: 4px;
         max-height: 35vh; overflow-y: auto;
@@ -416,7 +426,6 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
     #game-chat { max-height: 60px; }
     #game-chat .chat-messages { max-height: 35px; }
 
-    /* Botão de rolar compacto mas tocável */
     #roll-area .btn-super {
         min-height: 44px; font-size: 1rem; padding: 8px 14px;
     }
@@ -447,6 +456,38 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
 
     #audio-controls { flex-wrap: wrap; gap: 4px; padding: 4px 6px; margin-bottom: 2px; }
     #audio-controls input[type="range"] { max-width: 50px; }
+
+    /* Player HUD ainda mais compacto em phones */
+    .player-hud-card { padding: 3px 6px; gap: 1px; }
+    .phud-avatar-sm { width: 20px; height: 20px; font-size: 0.75rem; }
+    .phud-name-line span { font-size: .65rem !important; }
+    .phud-balance-value { font-size: .78rem; }
+    .phud-label { font-size: .5rem; }
+    .turn-badge { font-size: .5rem; padding: 1px 4px; }
+    .phud-groups-inline { display: none; }
+}
+
+/* ── Portrait phones — layout otimizado ──────────────────── */
+@media (max-width: 600px) and (orientation: portrait) {
+    #left-hud { padding: 3px 6px; }
+    #left-hud .player-panel-col .player-hud-card {
+        flex: 1 1 calc(50% - 3px); min-width: 120px;
+    }
+    #right-hud { padding: 4px 8px; }
+
+    /* Roll button: thumb-friendly, com destaque */
+    #roll-area { padding-top: 4px; }
+    #roll-area .btn-super {
+        min-height: 54px; font-size: 1.1rem;
+        border-radius: 14px;
+    }
+    #roll-area #dice-result { font-size: 0.82rem !important; margin-bottom: 2px; }
+
+    /* Rival cards compactos */
+    .rival-card { border-radius: 6px; }
+    .rival-btn-header { padding: 5px 8px; }
+    .rival-name { font-size: .7rem; max-width: 60px; }
+    .rival-money { font-size: .75rem; }
 }
 
 /* ── Telas muito pequenas (até 380px) ────────────────────── */
@@ -454,4 +495,7 @@ body { background: var(--bg-gradient); color: #fff; min-height: 100vh; min-heigh
     .lobby-box { padding: 14px 10px; }
     .lobby-box h1 { font-size: 1.3rem; }
     .btn-super { font-size: 0.95rem; padding: 10px 14px; }
+    #left-hud .player-panel-col .player-hud-card {
+        flex: 1 1 100%; min-width: 0;
+    }
 }

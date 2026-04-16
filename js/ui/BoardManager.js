@@ -124,7 +124,6 @@ export function createBoardElement() {
 function _scaleBoardToFit() {
     const board = document.getElementById('board');
     if (!board) return;
-    const NATIVE_SIZE = 838;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const isLandscape = window.matchMedia('(orientation: landscape)').matches;
@@ -137,22 +136,36 @@ function _scaleBoardToFit() {
         return;
     }
 
+    // Medir tamanho natural do board (CSS pode mudar via media queries)
+    const prevT = board.style.transform;
+    const prevMB = board.style.marginBottom;
+    const prevMR = board.style.marginRight;
+    board.style.transform = 'none';
+    board.style.marginBottom = '0';
+    board.style.marginRight = '0';
+    const NATIVE_W = board.scrollWidth;
+    const NATIVE_H = board.scrollHeight;
+    board.style.transform = prevT;
+    board.style.marginBottom = prevMB;
+    board.style.marginRight = prevMR;
+
+    const NATIVE_SIZE = Math.max(NATIVE_W, NATIVE_H);
+
     let scale;
     if (isLandscape) {
-        // Landscape: tabuleiro precisa caber na ALTURA da viewport
         scale = Math.min(1, (vh - 8) / NATIVE_SIZE);
     } else {
-        // Portrait: tabuleiro precisa caber na LARGURA da viewport
-        scale = Math.min(1, vw / NATIVE_SIZE);
+        scale = Math.min(1, (vw - 4) / NATIVE_SIZE);
     }
 
-    const shrink = -NATIVE_SIZE * (1 - scale);
+    const shrinkH = -NATIVE_H * (1 - scale);
+    const shrinkW = -NATIVE_W * (1 - scale);
     board.style.transform = `scale(${scale})`;
-    board.style.marginBottom = `${shrink}px`;
+    board.style.marginBottom = `${shrinkH}px`;
 
     if (isLandscape) {
         board.style.transformOrigin = 'top left';
-        board.style.marginRight = `${shrink}px`;
+        board.style.marginRight = `${shrinkW}px`;
     } else {
         board.style.transformOrigin = 'top center';
         board.style.marginRight = '';

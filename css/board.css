@@ -230,18 +230,54 @@
     .board-container { justify-content: flex-start; align-items: flex-start; }
 }
 
+/* ── Smartphones ≤600px — grid menor, texto compacto ─── */
 @media (max-width: 600px) {
     #board {
+        grid-template-columns: 52px repeat(9, 34px) 52px;
+        grid-template-rows: 52px repeat(9, 34px) 52px;
+        gap: 1px;
+        padding: 3px;
         border-width: 2px;
-        padding: 4px;
         border-radius: 6px;
     }
-    .player-token { width: 24px; height: 24px; font-size: 13px; }
-    .dice-3d { width: 44px; height: 44px; }
+    .board-corner { padding: 4px; }
+    .corner-text { font-size: 8px; }
+    .banco-logo { font-size: 1.4rem; letter-spacing: 2px; }
+    .inner-text .prop-name { font-size: 6px; }
+    .inner-text .prop-subname { font-size: 5px; }
+    .inner-text .price { font-size: 7px; }
+    .space-color-header { box-shadow: none; }
+    .space-left .inner-text { width: 34px; margin-right: 8px; }
+    .space-right .inner-text { width: 34px; margin-left: 8px; }
+    .space-top .inner-text { margin-bottom: 4px; }
+    .space-bottom .inner-text { margin-top: 8px; }
+    .rent-display .rent-line { font-size: 4px; }
+    .rent-display .rent-val { font-size: 6px; }
+    .card-question-mark { font-size: 14px; }
+    .sesmt-icon { font-size: 14px; }
+    .sesmt-name { font-size: 5px; }
+    .sesmt-price { font-size: 6px; }
+    .player-token { width: 16px; height: 16px; font-size: 8px; border-width: 1px; }
+    .owner-badge { min-width: 12px; min-height: 12px; font-size: 7px; padding: 1px 2px; }
+    .sipat-badge { width: 14px; height: 14px; font-size: 8px; bottom: -4px; left: -4px; }
+    .dice-3d { width: 36px; height: 36px; border-radius: 6px; padding: 5px; }
 }
 
+/* ── Smartphones muito pequenos ≤380px ────────────────── */
 @media (max-width: 380px) {
     #board {
-        padding: 4px; gap: 1px;
+        grid-template-columns: 44px repeat(9, 28px) 44px;
+        grid-template-rows: 44px repeat(9, 28px) 44px;
+        padding: 2px;
     }
+    .corner-text { font-size: 6px; }
+    .banco-logo { font-size: 1rem; }
+    .inner-text .prop-name { font-size: 5px; }
+    .inner-text .price { font-size: 6px; }
+    .space-left .inner-text { width: 28px; margin-right: 6px; }
+    .space-right .inner-text { width: 28px; margin-left: 6px; }
+    .card-question-mark { font-size: 11px; }
+    .sesmt-icon { font-size: 11px; }
+    .player-token { width: 14px; height: 14px; font-size: 7px; }
+    .dice-3d { width: 28px; height: 28px; }
 }
