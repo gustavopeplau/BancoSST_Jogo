@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════
-// SoundManager — Sistema de áudio procedural via Web Audio API
-// Sem arquivos externos: todos os sons gerados por osciladores.
-// Uso: SoundManager.play('dice') | SoundManager.play('gain')
+// SoundManager v2 — Modern Procedural Game Audio Engine
+// ─────────────────────────────────────────────────────────
+// Convolution reverb · Dynamic compression · Layered synth
+// Lo-fi chill BGM · Polished SFX · Zero external files
 // ═══════════════════════════════════════════════════════════
 
 class _SoundManager {
@@ -12,216 +13,336 @@ class _SoundManager {
         this.musicVolume = 0.12;
         this._bgmNodes = null;
         this._bgmPlaying = false;
+        this._ready = false;
     }
 
-    /** Inicializa o AudioContext (deve ser chamado após interação do usuário) */
     init() {
         if (this.ctx) return;
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this._build();
     }
 
-    /** Garante que o contexto está ativo (resume após user gesture) */
     _ensureCtx() {
         if (!this.ctx) this.init();
         if (this.ctx.state === 'suspended') this.ctx.resume();
         return this.ctx;
     }
 
-    /** Toca um som pelo nome */
-    play(name) {
-        if (!this.enabled) return;
-        const ctx = this._ensureCtx();
-        const fn = this._sounds[name];
-        if (fn) fn.call(this, ctx);
+    /* ── Audio routing graph ────────────────────────────────
+       SFX  → _sfxDry ──────────────→ _master → _comp → dest
+            → _sfxWet → _reverb → _revOut ↗
+       Music → _musicBus ──────────────────↗                  */
+    _build() {
+        if (this._ready) return;
+        const c = this.ctx;
+
+        this._comp = c.createDynamicsCompressor();
+        this._comp.threshold.value = -14;
+        this._comp.ratio.value = 4;
+        this._comp.attack.value = 0.003;
+        this._comp.release.value = 0.1;
+        this._comp.connect(c.destination);
+
+        this._master = c.createGain();
+        this._master.gain.value = 0.9;
+        this._master.connect(this._comp);
+
+        this._sfxDry = c.createGain();
+        this._sfxDry.connect(this._master);
+
+        this._reverb = this._ir(1.6, 2.0);
+        this._revOut = c.createGain();
+        this._revOut.gain.value = 0.18;
+        this._reverb.connect(this._revOut);
+        this._revOut.connect(this._master);
+
+        this._sfxWet = c.createGain();
+        this._sfxWet.gain.value = 0.35;
+        this._sfxWet.connect(this._reverb);
+
+        this._musicBus = c.createGain();
+        this._musicBus.connect(this._master);
+
+        // Shared noise buffer (1 second)
+        const len = c.sampleRate;
+        this._nBuf = c.createBuffer(1, len, c.sampleRate);
+        const d = this._nBuf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+
+        this._ready = true;
     }
 
-    // ── BGM — Chiptune estilo Alex Kidd (PSG / square wave) ──
+    /** Procedural impulse-response reverb */
+    _ir(dur, decay) {
+        const c = this.ctx, sr = c.sampleRate, n = Math.floor(sr * dur);
+        const buf = c.createBuffer(2, n, sr);
+        for (let ch = 0; ch < 2; ch++) {
+            const d = buf.getChannelData(ch);
+            for (let i = 0; i < n; i++)
+                d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+        }
+        const conv = c.createConvolver();
+        conv.buffer = buf;
+        return conv;
+    }
+
+    _hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+    /** Oscillator with ADSR envelope + optional filter */
+    _t(dest, send, type, freq, t, dur, vol, atk = 0.005, rel = 0.06, opts = {}) {
+        const c = this.ctx;
+        if (!freq || freq < 20) return;
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type;
+        o.frequency.value = freq;
+        if (opts.detune) o.detune.value = opts.detune;
+
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(vol, t + Math.min(atk, dur * 0.4));
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+        let node = o;
+        if (opts.lpf) {
+            const f = c.createBiquadFilter();
+            f.type = 'lowpass'; f.frequency.value = opts.lpf; f.Q.value = opts.Q || 0.7;
+            node.connect(f); node = f;
+        }
+        node.connect(g);
+        g.connect(dest);
+        if (send) g.connect(send);
+        o.start(t); o.stop(t + dur + 0.02);
+    }
+
+    /** Noise burst with optional bandpass */
+    _n(dest, send, t, dur, vol, hp = 0, lp = 20000) {
+        const c = this.ctx, src = c.createBufferSource();
+        src.buffer = this._nBuf;
+        if (dur > 0.9) src.loop = true;
+        const g = c.createGain();
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        let node = src;
+        if (hp > 0) {
+            const f = c.createBiquadFilter();
+            f.type = 'highpass'; f.frequency.value = hp;
+            node.connect(f); node = f;
+        }
+        if (lp < 18000) {
+            const f = c.createBiquadFilter();
+            f.type = 'lowpass'; f.frequency.value = lp;
+            node.connect(f); node = f;
+        }
+        node.connect(g); g.connect(dest);
+        if (send) g.connect(send);
+        src.start(t); src.stop(t + dur + 0.02);
+    }
+
+    /** Synth kick drum */
+    _kick(dest, t, vol = 0.12) {
+        const c = this.ctx;
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(160, t);
+        o.frequency.exponentialRampToValueAtTime(42, t + 0.06);
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+        o.connect(g).connect(dest);
+        o.start(t); o.stop(t + 0.27);
+        // Click transient
+        const o2 = c.createOscillator(), g2 = c.createGain();
+        o2.type = 'triangle';
+        o2.frequency.setValueAtTime(300, t);
+        o2.frequency.exponentialRampToValueAtTime(60, t + 0.015);
+        g2.gain.setValueAtTime(vol * 0.4, t);
+        g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+        o2.connect(g2).connect(dest);
+        o2.start(t); o2.stop(t + 0.05);
+    }
+
+    /** Snare / rimshot */
+    _snare(dest, t, vol = 0.07) {
+        const c = this.ctx;
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = 'triangle'; o.frequency.value = 200;
+        g.gain.setValueAtTime(vol * 0.5, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        o.connect(g).connect(dest);
+        o.start(t); o.stop(t + 0.1);
+        this._n(dest, null, t, 0.1, vol * 0.7, 2500, 12000);
+    }
+
+    /** Hi-hat (closed / open) */
+    _hat(dest, t, vol = 0.025, open = false) {
+        this._n(dest, null, t, open ? 0.14 : 0.035, vol, 8000);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PUBLIC API
+    // ═══════════════════════════════════════════════════════
+
+    play(name) {
+        if (!this.enabled) return;
+        this._ensureCtx();
+        const fn = this._sounds[name];
+        if (fn) fn.call(this);
+    }
+
+    // ── BGM: Lo-fi Chill Groove in C minor ────────────────
     startMusic() {
         if (this._bgmPlaying) return;
         const ctx = this._ensureCtx();
-        const master = ctx.createGain();
-        master.gain.value = this.musicVolume;
-        master.connect(ctx.destination);
 
-        const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -14;
-        comp.ratio.value = 5;
-        comp.connect(master);
+        // Music sub-mixer
+        const mg = ctx.createGain();
+        mg.gain.value = this.musicVolume;
+        mg.connect(this._musicBus);
 
-        const BPM = 112;
+        const mc = ctx.createDynamicsCompressor();
+        mc.threshold.value = -12; mc.ratio.value = 3;
+        mc.connect(mg);
+
+        // Music reverb (longer, lusher than SFX)
+        const mr = this._ir(2.4, 1.6);
+        const mrg = ctx.createGain();
+        mrg.gain.value = 0.14;
+        mr.connect(mrg); mrg.connect(mc);
+
+        const BPM = 88;
         const beat = 60 / BPM;
-        const eighth = beat / 2;
-        const bar = beat * 4;            // 1.6s
+        const e8 = beat / 2;
+        const e16 = beat / 4;
+        const bar = beat * 4;
+        const sw = 0.035; // swing offset
+        const hz = m => this._hz(m);
 
-        const hz = (m) => m === 0 ? 0 : 440 * Math.pow(2, (m - 69) / 12);
-
-        // ═══ COMPOSIÇÃO — 16 compassos (~25.6s) ═══════════════
-
-        // Melodia principal — square wave, 8 colcheias por compasso
-        // 0 = silêncio (pausa)
-        const melody = [
-    // ── Seção A: O "Hook" (Mais rítmico e moderno) ──
-    // Adicionei síncope e saltos de quarta/quinta para um ar profissional
-    [72, 0, 76, 79, 0, 81, 79, 0],   // C5 . E5 G5 . A5 G5 . (Groove)
-    [74, 0, 77, 81, 0, 83, 79, 77],  // D5 . F5 A5 . B5 G5 F5
-    [72, 76, 79, 84, 0, 86, 84, 79], // C5 E5 G5 C6 . D6 C6 G5
-    [77, 76, 74, 72, 74, 0, 77, 79], // F5 E5 D5 C5 D5 . F5 G5
-
-    // ── Seção B: Sofisticação (Jazz/Lo-fi Vibes) ──
-    // Aqui usamos notas que dão tensão e resolução
-    [81, 81, 84, 88, 81, 0, 79, 77], // A5 A5 C6 E6 A5 . G5 F5 (E6 dá o brilho)
-    [79, 79, 83, 86, 79, 0, 77, 74], // G5 G5 B5 D6 G5 . F5 D5
-    [77, 81, 84, 88, 79, 76, 74, 72], // F5 A5 C6 E6 G5 E5 D5 C5
-    [76, 79, 84, 83, 76, 0, 72, 71], // E5 G5 C6 B5 E5 . C5 B4
-
-    // ── Seção C: A Ponte "High-Tech" ──
-    // Menos notas, mais impacto. Foco no movimento ascendente
-    [84, 0, 81, 0, 86, 0, 83, 0],    // C6 . A5 . D6 . B5 .
-    [88, 0, 84, 0, 89, 88, 86, 84],  // E6 . C6 . F6 E6 D6 C6
-    [84, 84, 79, 79, 81, 81, 76, 76], // Mantive o padrão, mas com o synth certo soa como um clock
-    [77, 79, 81, 83, 84, 86, 88, 91], // Finaliza bem agudo (G6 no final)
-
-    // ── Seção D: Turnaround (Dramático e Elegante) ──
-    [79, 0, 84, 0, 86, 0, 88, 0],    // Espaçamento para o jogador respirar
-    [79, 77, 76, 74, 76, 0, 79, 81], // Resolução clássica
-    [83, 81, 79, 77, 76, 74, 72, 74], 
-    [72, 0, 79, 0, 84, 84, 0, 0],    // C5 . G5 . C6 C6 . . (Final mais seco e moderno)
-];
-
-        // Baixo — triangle wave, 4 semínimas por compasso
-        const bass = [
-            [48,55,48,55],[48,52,48,55],[45,52,45,52],[43,50,43,55],
-            [41,48,41,48],[43,50,43,55],[45,52,45,52],[43,50,43,55],
-            [48,55,48,55],[41,48,41,48],[38,45,38,45],[43,50,43,55],
-            [45,52,45,52],[41,48,41,48],[43,50,43,55],[48,55,48,55],
+        // ── Chord voicings (rootless, 16 bars) ───────────
+        // Neo-soul / lo-fi in C minor
+        const CH = [
+            // Section A
+            [55,58,62,67], [55,58,62,67],   // Cm9
+            [60,63,67,72], [60,63,67,72],   // Fm9
+            [48,55,60,63], [50,55,58,67],   // AbMaj7 → Gm7
+            [60,63,67,72], [47,50,53,59],   // Fm7 → G7
+            // Section B
+            [55,58,62,67], [55,58,62,67],   // EbMaj9
+            [48,55,60,63], [48,55,60,63],   // AbMaj7
+            [60,63,67,72], [48,50,53,55],   // Fm7 → G7sus4
+            [55,58,62,67], [55,58,62,67],   // Cm7
         ];
 
-        // Acordes para arpejo — 3 notas por compasso, arpegiadas
-        const chords = [
-            [60,64,67],[60,64,67],[57,60,64],[55,59,62],
-            [53,57,60],[55,59,62],[57,60,64],[55,59,62],
-            [60,64,67],[53,57,60],[50,53,57],[55,59,62],
-            [57,60,64],[53,57,60],[55,59,62],[60,64,67],
+        // Bass: root movement + octave fills
+        const BASS = [
+            [36,36,43,36], [36,43,36,43],
+            [41,41,48,41], [41,48,41,43],
+            [44,44,48,44], [43,43,47,43],
+            [41,41,48,41], [43,43,47,43],
+            [39,39,46,39], [39,46,39,46],
+            [44,44,48,44], [44,48,44,43],
+            [41,41,48,41], [43,43,47,43],
+            [36,36,43,36], [36,43,36,43],
         ];
 
-        const totalBars = melody.length; // 16
-        let _stopped = false;
+        // Melody: sparse pentatonic Rhodes lead
+        const MEL = [
+            [72,0,70,0,67,0,0,0],   [0,0,0,0,0,63,65,67],
+            [68,0,0,67,65,0,0,0],   [0,0,0,0,0,0,63,0],
+            [60,0,63,0,67,0,0,0],   [0,0,70,0,67,0,0,0],
+            [65,0,63,0,60,0,0,0],   [0,0,0,0,0,55,58,59],
+            [67,0,0,70,0,0,72,0],   [0,0,70,72,0,0,0,0],
+            [68,0,0,0,67,0,63,0],   [0,0,0,0,0,0,0,0],
+            [65,0,63,60,0,0,0,0],   [0,0,0,0,55,0,59,0],
+            [60,0,0,0,0,0,67,0],    [0,0,0,0,0,0,0,0],
+        ];
 
-        // ─── Funções de agendamento de notas ──────────────────
+        // Drum patterns (16th note grid, 16 chars each)
+        // K=kick  S=snare  h=hihat  O=open hat  .=rest
+        const DR = [
+            'K.h.S.h.K.h.S.h.',   // A: standard boom-bap
+            'K.h.S.h...K.S.h.',   // B: syncopated
+            'K.....h.....S.h.',   // C: half-time / breathing
+            'K.h.S.hK.Kh.SSSS',  // D: fill
+        ];
+        const DM = [0,0,0,1, 0,0,1,3, 0,0,0,1, 2,0,1,3];
 
-        const schedNote = (freq, t, dur, type, vol) => {
-            if (freq === 0 || dur < 0.04) return;
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.type = type;
-            o.frequency.value = freq;
-            g.gain.setValueAtTime(0.001, t);
-            g.gain.linearRampToValueAtTime(vol, t + 0.01);
-            g.gain.setValueAtTime(vol, t + dur * 0.7);
-            g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-            o.connect(g).connect(comp);
-            o.start(t);
-            o.stop(t + dur + 0.01);
-        };
+        const BARS = 16;
+        let stopped = false;
 
-        // Buffer de ruído branco reutilizado para percussão
-        const noiseLen = Math.floor(ctx.sampleRate * 0.06);
-        const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
-        const nd = noiseBuf.getChannelData(0);
-        for (let i = 0; i < noiseLen; i++) nd[i] = Math.random() * 2 - 1;
+        // ── Schedule one bar of all layers ────────────────
+        const sched = (bt, bi) => {
+            const b = bi % BARS;
 
-        const schedKick = (t) => {
-            // Kick: sine sweep 150→50Hz em 0.1s
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.type = 'triangle';
-            o.frequency.setValueAtTime(150, t);
-            o.frequency.exponentialRampToValueAtTime(50, t + 0.08);
-            g.gain.setValueAtTime(0.12, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            o.connect(g).connect(comp);
-            o.start(t);
-            o.stop(t + 0.12);
-        };
-
-        const schedHat = (t, vol) => {
-            const src = ctx.createBufferSource();
-            const g = ctx.createGain();
-            const hp = ctx.createBiquadFilter();
-            hp.type = 'highpass';
-            hp.frequency.value = 9000;
-            src.buffer = noiseBuf;
-            g.gain.setValueAtTime(vol, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-            src.connect(hp).connect(g).connect(comp);
-            src.start(t);
-            src.stop(t + 0.05);
-        };
-
-        // ─── Agenda todas as camadas de 1 compasso ────────────
-        const scheduleBar = (barTime, barIdx) => {
-            const b = barIdx % totalBars;
-
-            // LEAD — square wave (chiptune!)
-            const mel = melody[b];
-            mel.forEach((n, i) => {
-                if (n === 0) return;
-                schedNote(hz(n), barTime + i * eighth, eighth * 0.85, 'square', 0.055);
-            });
-
-            // BASS — triangle wave
-            const bs = bass[b];
-            bs.forEach((n, i) => {
-                schedNote(hz(n), barTime + i * beat, beat * 0.75, 'triangle', 0.09);
-            });
-
-            // ARPEJO — square wave suave, colcheias
-            const ch = chords[b];
+            // ── Rhodes keys (sine + bell overtone) ───────
+            const ch = CH[b];
             for (let i = 0; i < 8; i++) {
-                const note = ch[i % ch.length] + 12; // oitava acima
-                schedNote(hz(note), barTime + i * eighth, eighth * 0.45, 'square', 0.02);
+                // Deterministic skip for lo-fi sparseness
+                if (Math.sin(b * 7.3 + i * 11.7) > 0.15 && b > 0) continue;
+                const note = ch[i % ch.length];
+                const t = bt + i * e8 + (i % 2 ? sw : 0);
+                const vel = (i === 0 || i === 4) ? 0.032 : 0.018;
+                // Fundamental
+                this._t(mc, mr, 'sine', hz(note), t, e8 * 1.8, vel, 0.003, 0.15);
+                // Bell overtone (2nd harmonic)
+                this._t(mc, null, 'sine', hz(note) * 2, t, e8 * 0.7, vel * 0.12, 0.001, 0.06);
             }
 
-            // DRUMS — kick nos tempos 1 e 3, hihat em todas as colcheias
-            for (let i = 0; i < 8; i++) {
-                const t = barTime + i * eighth;
-                if (i === 0 || i === 4) schedKick(t);
-                schedHat(t, i % 2 === 0 ? 0.03 : 0.018);
+            // ── Melody (sparse Rhodes lead) ──────────────
+            MEL[b].forEach((n, i) => {
+                if (!n) return;
+                const t = bt + i * e8 + (i % 2 ? sw * 0.5 : 0);
+                this._t(mc, mr, 'sine', hz(n), t, e8 * 2.5, 0.042, 0.004, 0.25);
+                // Shimmer overtone (3rd harmonic)
+                this._t(mc, null, 'sine', hz(n) * 3, t + 0.002, e8 * 0.5, 0.004, 0.001, 0.05);
+            });
+
+            // ── Bass (warm sine + filtered triangle) ─────
+            BASS[b].forEach((n, i) => {
+                const t = bt + i * beat;
+                this._t(mc, null, 'sine', hz(n), t, beat * 0.8, 0.085, 0.008, 0.1);
+                this._t(mc, null, 'triangle', hz(n + 12), t, beat * 0.45, 0.018, 0.004, 0.06, { lpf: 700 });
+            });
+
+            // ── Drums (boom-bap with swing) ──────────────
+            const pat = DR[DM[b]];
+            for (let i = 0; i < 16; i++) {
+                const t = bt + i * e16 + (i % 2 ? sw * 0.6 : 0);
+                const ch2 = pat[i];
+                if (ch2 === 'K') this._kick(mc, t, 0.1);
+                if (ch2 === 'S') this._snare(mc, t, 0.055);
+                if (ch2 === 'h') this._hat(mc, t, 0.018);
+                if (ch2 === 'O') this._hat(mc, t, 0.022, true);
             }
+
+            // ── Vinyl crackle (subtle texture) ───────────
+            this._n(mc, null, bt, bar, 0.003, 600, 4000);
         };
 
-        // ─── Look-ahead scheduler (sem gaps, contínuo) ───────
-        const LOOK_AHEAD = 0.25;   // agenda 250ms à frente
-        const CHECK_MS   = 50;     // verifica a cada 50ms
-        let nextBarTime = ctx.currentTime + 0.05;
-        let barCursor   = 0;
-
+        // ── Look-ahead scheduler ─────────────────────────
+        const LOOK = 0.3, TICK = 60;
+        let nextBar = ctx.currentTime + 0.1, cursor = 0;
         const tick = () => {
-            if (_stopped) return;
-            while (nextBarTime < ctx.currentTime + LOOK_AHEAD) {
-                scheduleBar(nextBarTime, barCursor);
-                nextBarTime += bar;
-                barCursor++;
+            if (stopped) return;
+            while (nextBar < ctx.currentTime + LOOK) {
+                sched(nextBar, cursor);
+                nextBar += bar;
+                cursor++;
             }
         };
-
-        // Agenda os primeiros compassos imediatamente
         tick();
-        const timerID = setInterval(tick, CHECK_MS);
+        const tid = setInterval(tick, TICK);
 
         this._bgmNodes = {
-            masterGain: master,
-            stop: () => { _stopped = true; clearInterval(timerID); }
+            masterGain: mg,
+            stop: () => { stopped = true; clearInterval(tid); }
         };
         this._bgmPlaying = true;
     }
 
     stopMusic() {
         if (!this._bgmNodes) return;
-        const ctx = this.ctx;
-        const now = ctx.currentTime;
-        this._bgmNodes.masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-        if (this._bgmNodes.stop) this._bgmNodes.stop();
+        const { masterGain, stop } = this._bgmNodes;
+        masterGain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.8);
+        if (stop) stop();
+        setTimeout(() => { try { masterGain.disconnect(); } catch (e) { /* ok */ } }, 1000);
         this._bgmNodes = null;
         this._bgmPlaying = false;
     }
@@ -231,133 +352,172 @@ class _SoundManager {
         if (this._bgmNodes) this._bgmNodes.masterGain.gain.value = val;
     }
 
-    setSfxVolume(val) {
-        this.volume = val;
-    }
+    setSfxVolume(val) { this.volume = val; }
 
-    /** Cria um oscilador auxiliar */
-    _osc(ctx, type, freq, start, end, vol = this.volume) {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = type;
-        o.frequency.value = freq;
-        g.gain.setValueAtTime(vol, ctx.currentTime + start);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + end);
-        o.connect(g).connect(ctx.destination);
-        o.start(ctx.currentTime + start);
-        o.stop(ctx.currentTime + end);
-    }
-
-    /** Cria ruído branco (para cliques e percussão) */
-    _noise(ctx, duration, vol = this.volume * 0.5) {
-        const bufferSize = ctx.sampleRate * duration;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const src = ctx.createBufferSource();
-        const g = ctx.createGain();
-        src.buffer = buffer;
-        g.gain.setValueAtTime(vol, ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        src.connect(g).connect(ctx.destination);
-        src.start();
-    }
+    // ═══════════════════════════════════════════════════════
+    // SFX LIBRARY
+    // ═══════════════════════════════════════════════════════
 
     _sounds = {
-        /** Dado rolando — sequência rápida de cliques */
-        dice(ctx) {
-            for (let i = 0; i < 6; i++) {
-                const t = i * 0.07;
-                this._osc(ctx, 'square', 200 + Math.random() * 400, t, t + 0.04, this.volume * 0.3);
+        /** 🎲 Dice rolling — wood bounces + satisfying landing */
+        dice() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            // Accelerating bounces
+            const hits = [0, 0.055, 0.1, 0.14, 0.175, 0.21, 0.24, 0.27, 0.305, 0.35];
+            hits.forEach((dt, i) => {
+                const pitch = 300 + Math.random() * 500;
+                const vol = v * (0.12 + i * 0.018);
+                this._t(d, null, 'triangle', pitch, t + dt, 0.03, vol, 0.001, 0.02);
+                this._t(d, null, 'sine', pitch * 0.5, t + dt, 0.05, vol * 0.3, 0.001, 0.04);
+            });
+            // Final landing thud
+            this._t(d, w, 'sine', 520, t + 0.4, 0.2, v * 0.4, 0.002, 0.15);
+            this._t(d, null, 'triangle', 280, t + 0.4, 0.12, v * 0.3, 0.001, 0.1);
+            this._t(d, null, 'sine', 80, t + 0.41, 0.15, v * 0.25, 0.002, 0.12);
+        },
+
+        /** 👟 Pawn step — percussive tap with reverb */
+        step() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            this._t(d, w, 'sine', 660, t, 0.06, v * 0.2, 0.002, 0.04);
+            this._t(d, null, 'triangle', 1100, t + 0.005, 0.04, v * 0.08, 0.001, 0.03);
+        },
+
+        /** 🎯 Pawn lands — deep satisfying impact */
+        land() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            this._t(d, null, 'sine', 120, t, 0.25, v * 0.45, 0.003, 0.2);
+            this._t(d, w, 'triangle', 350, t, 0.15, v * 0.3, 0.002, 0.12);
+            this._n(d, null, t, 0.08, v * 0.08, 200, 2000);
+        },
+
+        /** 💰 Money gained — sparkly ascending cascade */
+        gain() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            const notes = [60, 64, 67, 72, 76]; // C E G C5 E5
+            notes.forEach((n, i) => {
+                const dt = i * 0.065;
+                this._t(d, w, 'sine', this._hz(n), t + dt, 0.35 - i * 0.03, v * 0.3, 0.003, 0.15);
+                this._t(d, null, 'sine', this._hz(n) * 3, t + dt + 0.01, 0.15, v * 0.04, 0.001, 0.08);
+            });
+            // Sparkle
+            this._n(d, w, t + 0.05, 0.3, v * 0.04, 6000);
+        },
+
+        /** 📉 Money lost — tense descending chromatic */
+        loss() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            const notes = [67, 63, 60, 56, 53]; // G Eb C Ab F
+            notes.forEach((n, i) => {
+                const dt = i * 0.085;
+                this._t(d, w, 'sawtooth', this._hz(n), t + dt, 0.25, v * 0.07, 0.005, 0.15, { lpf: 1200 });
+                this._t(d, null, 'sine', this._hz(n), t + dt, 0.2, v * 0.14, 0.003, 0.12);
+            });
+            this._t(d, null, 'sine', 60, t + 0.2, 0.4, v * 0.1, 0.05, 0.3);
+        },
+
+        /** 🃏 Card revealed — whoosh + chime shimmer */
+        card() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            this._n(d, null, t, 0.2, v * 0.14, 1000, 8000);
+            this._t(d, w, 'sine', 800, t + 0.08, 0.3, v * 0.25, 0.01, 0.2);
+            this._t(d, w, 'sine', 1200, t + 0.12, 0.25, v * 0.18, 0.01, 0.15);
+            this._t(d, null, 'sine', 2400, t + 0.15, 0.12, v * 0.06, 0.002, 0.08);
+        },
+
+        /** 🖱️ Button click — crisp pop */
+        click() {
+            const t = this.ctx.currentTime, d = this._sfxDry, v = this.volume;
+            this._t(d, null, 'sine', 1000, t, 0.035, v * 0.2, 0.001, 0.025);
+            this._t(d, null, 'triangle', 600, t + 0.005, 0.025, v * 0.1, 0.001, 0.02);
+        },
+
+        /** 🛒 Purchase — modern ka-ching bell */
+        buy() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            [1568, 2093, 2637].forEach((f, i) => {
+                this._t(d, w, 'sine', f, t + i * 0.055, 0.4 - i * 0.1, v * 0.2, 0.002, 0.2);
+            });
+            this._t(d, w, 'sine', 3200, t + 0.15, 0.15, v * 0.08, 0.001, 0.1);
+            this._t(d, null, 'sine', 523, t + 0.08, 0.2, v * 0.2, 0.005, 0.15);
+            this._n(d, null, t, 0.05, v * 0.08, 4000);
+        },
+
+        /** 🎰 Double dice — exciting power escalation */
+        double() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            const notes = [60, 67, 72, 79, 84]; // C G C5 G5 C6
+            notes.forEach((n, i) => {
+                this._t(d, w, 'sine', this._hz(n), t + i * 0.05, 0.35, v * (0.2 + i * 0.04), 0.002, 0.2);
+                this._t(d, null, 'triangle', this._hz(n + 12), t + i * 0.05, 0.2, v * 0.06, 0.001, 0.1);
+            });
+            this._n(d, w, t + 0.2, 0.15, v * 0.06, 3000);
+        },
+
+        /** 🚫 Interdiction — dark pulsing alarm */
+        interdict() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            for (let i = 0; i < 3; i++) {
+                const dt = i * 0.22;
+                this._t(d, w, 'sawtooth', 110, t + dt, 0.18, v * 0.12, 0.01, 0.1, { lpf: 400 });
+                this._t(d, null, 'square', 220, t + dt, 0.15, v * 0.06, 0.01, 0.08, { lpf: 600 });
             }
-            // Impacto final
-            this._osc(ctx, 'triangle', 600, 0.42, 0.65, this.volume * 0.5);
+            this._t(d, null, 'sine', 45, t, 0.7, v * 0.2, 0.05, 0.4);
+            this._n(d, null, t, 0.5, v * 0.04, 100, 500);
         },
 
-        /** Passo do peão — toc curto */
-        step(ctx) {
-            this._osc(ctx, 'sine', 440, 0, 0.08, this.volume * 0.2);
-            this._osc(ctx, 'triangle', 880, 0.01, 0.06, this.volume * 0.1);
-        },
-
-        /** Peão pousa na casa — impacto */
-        land(ctx) {
-            this._osc(ctx, 'sine', 350, 0, 0.12, this.volume * 0.4);
-            this._osc(ctx, 'triangle', 180, 0.02, 0.18, this.volume * 0.3);
-        },
-
-        /** Ganho de dinheiro — arpejo ascendente alegre */
-        gain(ctx) {
-            [523, 659, 784, 1047].forEach((f, i) => {
-                this._osc(ctx, 'sine', f, i * 0.08, i * 0.08 + 0.2, this.volume * 0.35);
+        /** 🏆 Victory — epic triumphant fanfare */
+        victory() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            const layers = [
+                { notes: [60],             dt: 0.0,  dur: 0.4  },
+                { notes: [60, 64],         dt: 0.15, dur: 0.5  },
+                { notes: [60, 64, 67],     dt: 0.3,  dur: 0.6  },
+                { notes: [60, 64, 67, 72], dt: 0.5,  dur: 0.8  },
+                { notes: [60, 64, 67, 72, 76], dt: 0.8, dur: 1.2 },
+            ];
+            layers.forEach(({ notes, dt, dur }) => {
+                notes.forEach(n => {
+                    // Brass layer
+                    this._t(d, w, 'sawtooth', this._hz(n), t + dt, dur, v * 0.08, 0.02, 0.3, { lpf: 2000 });
+                    // Bright layer
+                    this._t(d, w, 'sine', this._hz(n), t + dt, dur, v * 0.2, 0.01, 0.4);
+                    // Octave shimmer
+                    this._t(d, null, 'sine', this._hz(n + 12), t + dt + 0.02, dur * 0.6, v * 0.05, 0.005, 0.15);
+                });
             });
+            // Timpani roll
+            for (let i = 0; i < 8; i++) {
+                this._t(d, null, 'sine', 80 + Math.random() * 10, t + 0.6 + i * 0.04, 0.08,
+                    v * (0.1 + i * 0.02), 0.002, 0.06);
+            }
+            // Crash cymbal
+            this._n(d, w, t + 0.8, 1.5, v * 0.08, 2000);
         },
 
-        /** Perda de dinheiro — descida dramática */
-        loss(ctx) {
-            [440, 370, 311, 261].forEach((f, i) => {
-                this._osc(ctx, 'sawtooth', f, i * 0.1, i * 0.1 + 0.2, this.volume * 0.15);
-            });
+        /** ✅ Quiz correct — bright major-third confirmation */
+        correct() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            this._t(d, w, 'sine', this._hz(72), t, 0.15, v * 0.35, 0.003, 0.1);
+            this._t(d, w, 'sine', this._hz(76), t + 0.1, 0.25, v * 0.4, 0.003, 0.15);
+            this._t(d, null, 'sine', this._hz(88), t + 0.12, 0.12, v * 0.05, 0.001, 0.08);
         },
 
-        /** Carta revelada — whoosh + brilho */
-        card(ctx) {
-            this._noise(ctx, 0.15, this.volume * 0.3);
-            this._osc(ctx, 'sine', 600, 0.05, 0.35, this.volume * 0.3);
-            this._osc(ctx, 'sine', 900, 0.1, 0.3, this.volume * 0.2);
+        /** ❌ Quiz wrong — dissonant minor-second buzz */
+        wrong() {
+            const t = this.ctx.currentTime, d = this._sfxDry, v = this.volume;
+            this._t(d, null, 'sawtooth', this._hz(60), t, 0.3, v * 0.08, 0.01, 0.2, { lpf: 800 });
+            this._t(d, null, 'sawtooth', this._hz(61), t, 0.3, v * 0.08, 0.01, 0.2, { lpf: 800 });
+            this._t(d, null, 'sine', 80, t, 0.2, v * 0.15, 0.005, 0.15);
         },
 
-        /** Clique de botão */
-        click(ctx) {
-            this._osc(ctx, 'square', 800, 0, 0.04, this.volume * 0.15);
+        /** 🔄 Turn change — soft whoosh + bell */
+        turnChange() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            this._n(d, null, t, 0.15, v * 0.06, 2000, 8000);
+            this._t(d, w, 'sine', this._hz(72), t + 0.05, 0.2, v * 0.2, 0.003, 0.15);
+            this._t(d, null, 'sine', this._hz(79), t + 0.1, 0.12, v * 0.1, 0.002, 0.08);
         },
-
-        /** Compra realizada — som de caixa registradora */
-        buy(ctx) {
-            this._osc(ctx, 'sine', 523, 0, 0.1, this.volume * 0.3);
-            this._osc(ctx, 'sine', 659, 0.08, 0.18, this.volume * 0.3);
-            this._osc(ctx, 'sine', 784, 0.16, 0.35, this.volume * 0.4);
-            this._noise(ctx, 0.08, this.volume * 0.2);
-        },
-
-        /** Dupla nos dados */
-        double(ctx) {
-            [784, 988, 1175, 1319].forEach((f, i) => {
-                this._osc(ctx, 'sine', f, i * 0.06, i * 0.06 + 0.25, this.volume * 0.3);
-            });
-        },
-
-        /** Interdição — som ominoso */
-        interdict(ctx) {
-            this._osc(ctx, 'sawtooth', 150, 0, 0.5, this.volume * 0.2);
-            this._osc(ctx, 'square', 100, 0.1, 0.6, this.volume * 0.15);
-        },
-
-        /** Vitória — fanfarra */
-        victory(ctx) {
-            [523, 659, 784, 1047, 1319].forEach((f, i) => {
-                this._osc(ctx, 'sine', f, i * 0.12, i * 0.12 + 0.4, this.volume * 0.4);
-                this._osc(ctx, 'triangle', f * 1.5, i * 0.12 + 0.05, i * 0.12 + 0.35, this.volume * 0.15);
-            });
-        },
-
-        /** Quiz correto */
-        correct(ctx) {
-            this._osc(ctx, 'sine', 523, 0, 0.15, this.volume * 0.3);
-            this._osc(ctx, 'sine', 784, 0.1, 0.3, this.volume * 0.4);
-        },
-
-        /** Quiz errado */
-        wrong(ctx) {
-            this._osc(ctx, 'sawtooth', 200, 0, 0.3, this.volume * 0.15);
-            this._osc(ctx, 'sawtooth', 160, 0.1, 0.35, this.volume * 0.12);
-        },
-
-        /** Turno mudou */
-        turnChange(ctx) {
-            this._osc(ctx, 'sine', 660, 0, 0.1, this.volume * 0.2);
-            this._osc(ctx, 'sine', 880, 0.08, 0.18, this.volume * 0.15);
-        }
     };
 }
 
