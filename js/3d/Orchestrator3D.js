@@ -15,6 +15,9 @@ import { SoundManager } from '../utils/SoundManager.js';
 
 let _is3D = false;
 let _gameRef = null;
+let _followToggleBtn = null;
+
+function _isMobile() { return window.innerWidth <= 900; }
 
 export const Orchestrator3D = {
 
@@ -45,6 +48,41 @@ export const Orchestrator3D = {
         HUD3D.init();
 
         _is3D = true;
+
+        // Auto-enable follow on mobile
+        if (_isMobile()) {
+            Scene3D.enableFollow(true);
+            this._createFollowToggle();
+        }
+    },
+
+    _createFollowToggle() {
+        if (_followToggleBtn) return;
+        _followToggleBtn = document.createElement('button');
+        _followToggleBtn.id = 'btn-follow-toggle';
+        _followToggleBtn.className = 'follow-toggle-btn';
+        _followToggleBtn.innerHTML = '🗺️';
+        _followToggleBtn.title = 'Ver tabuleiro completo';
+        _followToggleBtn.addEventListener('click', () => {
+            const nowFollow = this.toggleFollow();
+            _followToggleBtn.innerHTML = nowFollow ? '🗺️' : '🎯';
+            _followToggleBtn.title = nowFollow ? 'Ver tabuleiro completo' : 'Seguir jogador';
+        });
+        const wrapper = document.getElementById('game-wrapper');
+        if (wrapper) wrapper.appendChild(_followToggleBtn);
+    },
+
+    toggleFollow() {
+        const isFollow = Scene3D.isFollowEnabled();
+        Scene3D.enableFollow(!isFollow);
+        if (!isFollow && _gameRef) {
+            const cp = _gameRef.getCurrentPlayer();
+            if (cp) {
+                const tok = PlayerToken3D.getToken(cp.id);
+                if (tok) Scene3D.setFollowTarget(tok.position.x, 0, tok.position.z);
+            }
+        }
+        return !isFollow;
     },
 
     /**
@@ -68,6 +106,12 @@ export const Orchestrator3D = {
     spawnTokens(players) {
         PlayerToken3D.spawnAll(players);
         MoneyPile3D.updateAll(players);
+
+        // Focus camera on first player in follow mode
+        if (Scene3D.isFollowEnabled() && players.length > 0) {
+            const tok = PlayerToken3D.getToken(players[0].id);
+            if (tok) Scene3D.setFollowTarget(tok.position.x, 0, tok.position.z);
+        }
     },
 
     /**
@@ -80,7 +124,19 @@ export const Orchestrator3D = {
         // Highlight active space before move
         Board3D.setSpaceHighlight(fromId, false);
 
+        // Follow token during animation
+        let followCb = null;
+        if (Scene3D.isFollowEnabled()) {
+            followCb = () => {
+                const tok = PlayerToken3D.getToken(player.id);
+                if (tok) Scene3D.setFollowTarget(tok.position.x, 0, tok.position.z);
+            };
+            Scene3D.onAnimate(followCb);
+        }
+
         await PlayerToken3D.animateHop(player.id, fromId, spacesToMove);
+
+        if (followCb) Scene3D.removeAnimateCallback(followCb);
 
         // Highlight destination
         const dest = (fromId + spacesToMove) % 40;
@@ -148,6 +204,12 @@ export const Orchestrator3D = {
         allPlayers.forEach(p => {
             PlayerToken3D.setActiveGlow(p.id, p.id === activePlayerId);
         });
+
+        // Pan camera to active player
+        if (Scene3D.isFollowEnabled()) {
+            const tok = PlayerToken3D.getToken(activePlayerId);
+            if (tok) Scene3D.setFollowTarget(tok.position.x, 0, tok.position.z);
+        }
     },
 
     /**
@@ -231,6 +293,7 @@ export const Orchestrator3D = {
         HUD3D.dispose();
         MoneyPile3D.dispose();
         SpeechBubble3D.clearAll();
+        if (_followToggleBtn) { _followToggleBtn.remove(); _followToggleBtn = null; }
         _is3D = false;
         _gameRef = null;
     }

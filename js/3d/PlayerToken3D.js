@@ -348,10 +348,7 @@ export const PlayerToken3D = {
 
             // Trail effect — highlight space
             Board3D.pulseSpace(targetIdx);
-// Progressive hop sound (pitch rises toward destination)
-            SoundManager.play('step', step, spacesToMove);
 
-            
             // Progressive hop sound (pitch rises toward destination)
             SoundManager.play('step', step, spacesToMove);
 

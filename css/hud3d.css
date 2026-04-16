@@ -473,6 +473,34 @@
 }
 
 /* === RESPONSIVE === */
+
+/* === FOLLOW TOGGLE BUTTON (mobile only) === */
+.follow-toggle-btn {
+    position: absolute;
+    bottom: calc(12px + var(--safe-bottom, 0px));
+    right: calc(12px + var(--safe-right, 0px));
+    z-index: 200;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    background: rgba(15,25,40,0.75);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.follow-toggle-btn:active {
+    transform: scale(0.88);
+    background: rgba(64,162,255,0.4);
+}
+
 @media (max-width: 900px) {
     .hud-card-3d {
         width: 180px;

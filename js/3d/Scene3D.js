@@ -9,12 +9,22 @@ const CAMERA_DISTANCE = 32;
 const FRUSTUM_SIZE = 36.75;
 const BOBBING_AMPLITUDE = 0.08;
 const BOBBING_SPEED = 0.4;
+const FOLLOW_FRUSTUM = 20;
+const CAMERA_LERP_SPEED = 3.0;
+const ZOOM_LERP_SPEED = 2.5;
 
 let _scene, _camera, _renderer, _clock, _animationId;
 let _bobbingTime = 0;
 let _cameraBaseY = 0;
 let _resizeHandler = null;
 let _onAnimateCallbacks = [];
+let _followEnabled = false;
+let _followTarget = null;
+let _currentLookAt = null;
+let _targetFrustum = FRUSTUM_SIZE;
+let _currentFrustum = FRUSTUM_SIZE;
+let _container = null;
+const _zeroVec = { x: 0, y: 0, z: 0 };
 
 export const Scene3D = {
     scene: null,
@@ -55,6 +65,11 @@ export const Scene3D = {
         _camera.updateProjectionMatrix();
         _cameraBaseY = _camera.position.y;
         this.camera = _camera;
+
+        // Follow mode vectors
+        _followTarget = new THREE.Vector3(0, 0, 0);
+        _currentLookAt = new THREE.Vector3(0, 0, 0);
+        _container = container;
 
         // Renderer
         _renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -157,7 +172,7 @@ export const Scene3D = {
         const w = container.clientWidth;
         const h = container.clientHeight;
         const aspect = w / h;
-        const frustumSize = FRUSTUM_SIZE;
+        const frustumSize = _currentFrustum;
 
         _camera.left = -frustumSize * aspect / 2;
         _camera.right = frustumSize * aspect / 2;
@@ -172,9 +187,31 @@ export const Scene3D = {
         _animationId = requestAnimationFrame(() => this._animate());
         const delta = _clock.getDelta();
 
-        // Camera bobbing
+        // Camera bobbing + follow
         _bobbingTime += delta * BOBBING_SPEED;
-        _camera.position.y = _cameraBaseY + Math.sin(_bobbingTime) * BOBBING_AMPLITUDE;
+        const bobY = Math.sin(_bobbingTime) * BOBBING_AMPLITUDE;
+
+        // Lerp lookAt toward follow target or board center
+        const lookTarget = (_followEnabled && _followTarget) ? _followTarget : _zeroVec;
+        _currentLookAt.lerp(lookTarget, 1 - Math.exp(-CAMERA_LERP_SPEED * delta));
+
+        _camera.position.set(
+            CAMERA_DISTANCE + _currentLookAt.x,
+            _cameraBaseY + bobY + _currentLookAt.y,
+            CAMERA_DISTANCE + _currentLookAt.z
+        );
+        _camera.lookAt(_currentLookAt.x, _currentLookAt.y, _currentLookAt.z);
+
+        // Smooth frustum zoom
+        if (Math.abs(_currentFrustum - _targetFrustum) > 0.01 && _container) {
+            _currentFrustum += (_targetFrustum - _currentFrustum) * (1 - Math.exp(-ZOOM_LERP_SPEED * delta));
+            const aspect = _container.clientWidth / _container.clientHeight;
+            _camera.left = -_currentFrustum * aspect / 2;
+            _camera.right = _currentFrustum * aspect / 2;
+            _camera.top = _currentFrustum / 2;
+            _camera.bottom = -_currentFrustum / 2;
+            _camera.updateProjectionMatrix();
+        }
 
         // Animate particles
         _scene.traverse(obj => {
@@ -202,6 +239,22 @@ export const Scene3D = {
 
     removeAnimateCallback(callback) {
         _onAnimateCallbacks = _onAnimateCallbacks.filter(cb => cb !== callback);
+    },
+
+    enableFollow(enabled) {
+        _followEnabled = enabled;
+        _targetFrustum = enabled ? FOLLOW_FRUSTUM : FRUSTUM_SIZE;
+        if (!enabled && _followTarget) {
+            _followTarget.set(0, 0, 0);
+        }
+    },
+
+    setFollowTarget(x, y, z) {
+        if (_followTarget) _followTarget.set(x, y || 0, z);
+    },
+
+    isFollowEnabled() {
+        return _followEnabled;
     },
 
     dispose() {
