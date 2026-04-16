@@ -432,8 +432,7 @@ class _SoundManager {
             // Impact noise
             this._n(d, null, t, 0.06, v * 0.1, 200, 3000);
             // Surface vibration
-            this._n(d, w, t + 0.03, 0.15, v * 0.02, 400, 15
-            this._t(d, w, 'sine', 1800, t + 0.65, 0.25, v * 0.03, 0.005, 0.18);
+            this._n(d, w, t + 0.03, 0.15, v * 0.02, 400, 1500);
         },
 
         /** 👟 Pawn hop — progressive xylophone-like note per step
