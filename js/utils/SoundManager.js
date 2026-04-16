@@ -180,11 +180,11 @@ class _SoundManager {
     // PUBLIC API
     // ═══════════════════════════════════════════════════════
 
-    play(name) {
+    play(name, ...args) {
         if (!this.enabled) return;
         this._ensureCtx();
         const fn = this._sounds[name];
-        if (fn) fn.call(this);
+        if (fn) fn.call(this, ...args, ...args);
     }
 
     // ── BGM: Lo-fi Chill Groove in C minor ────────────────
@@ -359,36 +359,124 @@ class _SoundManager {
     // ═══════════════════════════════════════════════════════
 
     _sounds = {
-        /** 🎲 Dice rolling — wood bounces + satisfying landing */
+        /** 🎲 Dice rolling — cinematic shake, tumble & settle */
         dice() {
             const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
-            // Accelerating bounces
-            const hits = [0, 0.055, 0.1, 0.14, 0.175, 0.21, 0.24, 0.27, 0.305, 0.35];
-            hits.forEach((dt, i) => {
-                const pitch = 300 + Math.random() * 500;
-                const vol = v * (0.12 + i * 0.018);
-                this._t(d, null, 'triangle', pitch, t + dt, 0.03, vol, 0.001, 0.02);
-                this._t(d, null, 'sine', pitch * 0.5, t + dt, 0.05, vol * 0.3, 0.001, 0.04);
+
+            // Phase 1: Shaking rattle (0-0.25s)
+            for (let i = 0; i < 8; i++) {
+                const dt = i * 0.03;
+                const p = 1200 + Math.random() * 2000;
+                this._n(d, null, t + dt, 0.02, v * 0.06, p, p + 800);
+            }
+
+            // Phase 2: Tumbling bounces — decelerating, pitch drops
+            const bounces = [0.28, 0.36, 0.42, 0.47, 0.51, 0.545, 0.575, 0.6];
+            bounces.forEach((dt, i) => {
+                const energy = 1 - i / bounces.length;
+                const pitch = 350 + energy * 450 + Math.random() * 150;
+                const vol = v * (0.08 + energy * 0.18);
+                // Wooden clack
+                this._t(d, null, 'triangle', pitch, t + dt, 0.025, vol, 0.001, 0.018);
+                // Body thump
+                this._t(d, null, 'sine', 80 + energy * 60, t + dt, 0.04, vol * 0.5, 0.001, 0.03);
+                // Surface scratch
+                this._n(d, null, t + dt, 0.015, vol * 0.15, 3000, 10000);
             });
-            // Final landing thud
-            this._t(d, w, 'sine', 520, t + 0.4, 0.2, v * 0.4, 0.002, 0.15);
-            this._t(d, null, 'triangle', 280, t + 0.4, 0.12, v * 0.3, 0.001, 0.1);
-            this._t(d, null, 'sine', 80, t + 0.41, 0.15, v * 0.25, 0.002, 0.12);
+
+            // Phase 3: Final settle — satisfying stop
+            this._t(d, null, 'sine', 90, t + 0.64, 0.2, v * 0.35, 0.003, 0.16);
+            this._t(d, w, 'triangle', 420, t + 0.64, 0.12, v * 0.25, 0.002, 0.08);
+            this._t(d, null, 'sine', 210, t + 0.66, 0.1, v * 0.15, 0.002, 0.07);
+            // Subtle ring
+            this._t(d, w, 'sine', 1800, t + 0.65, 0.25, v * 0.03, 0.005, 0.18);
         },
 
-        /** 👟 Pawn step — percussive tap with reverb */
-        step() {
+        /** 👟 Pawn hop — progressive xylophone-like note per step
+         *  @param {number} stepIdx  — current step (1-based)
+         *  @param {number} total    — total steps to move           */
+        step(stepIdx = 1, total = 6) {
             const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
-            this._t(d, w, 'sine', 660, t, 0.06, v * 0.2, 0.002, 0.04);
-            this._t(d, null, 'triangle', 1100, t + 0.005, 0.04, v * 0.08, 0.001, 0.03);
+
+            // Pentatonic scale: C D E G A — maps step progress to rising pitch
+            const scale = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84, 86];
+            const progress = Math.min((stepIdx - 1) / Math.max(total - 1, 1), 1);
+            const noteIdx = Math.round(progress * (scale.length - 1));
+            const midi = scale[noteIdx];
+            const freq = this._hz(midi);
+
+            // Volume builds slightly toward destination
+            const volScale = 0.7 + progress * 0.3;
+
+            // Main tap (wood block feel)
+            this._t(d, w, 'sine', freq, t, 0.08, v * 0.22 * volScale, 0.002, 0.05);
+            // Harmonic shimmer (bell)
+            this._t(d, null, 'sine', freq * 2.5, t + 0.003, 0.05, v * 0.05 * volScale, 0.001, 0.035);
+            // Subtle thud of foot
+            this._t(d, null, 'sine', 100, t + 0.005, 0.04, v * 0.08, 0.001, 0.03);
+            // Tiny click transient
+            this._n(d, null, t, 0.008, v * 0.04, 4000, 12000);
         },
 
-        /** 🎯 Pawn lands — deep satisfying impact */
+        /** 🎯 Pawn lands — triumphant arrival with weight */
         land() {
             const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
-            this._t(d, null, 'sine', 120, t, 0.25, v * 0.45, 0.003, 0.2);
-            this._t(d, w, 'triangle', 350, t, 0.15, v * 0.3, 0.002, 0.12);
-            this._n(d, null, t, 0.08, v * 0.08, 200, 2000);
+            // Deep thud
+            this._t(d, null, 'sine', 70, t, 0.3, v * 0.5, 0.003, 0.22);
+            this._t(d, null, 'sine', 140, t + 0.005, 0.15, v * 0.25, 0.003, 0.1);
+            // Bright arrival chime
+            this._t(d, w, 'sine', this._hz(72), t + 0.02, 0.25, v * 0.28, 0.003, 0.18);
+            this._t(d, w, 'sine', this._hz(76), t + 0.05, 0.2, v * 0.18, 0.003, 0.14);
+            // Shimmer
+            this._t(d, null, 'sine', this._hz(84), t + 0.06, 0.12, v * 0.04, 0.002, 0.08);
+            // Impact noise
+            this._n(d, null, t, 0.06, v * 0.1, 200, 3000);
+            // Surface vibration
+            this._n(d, w, t + 0.03, 0.15, v * 0.02, 400, 15
+            this._t(d, w, 'sine', 1800, t + 0.65, 0.25, v * 0.03, 0.005, 0.18);
+        },
+
+        /** 👟 Pawn hop — progressive xylophone-like note per step
+         *  @param {number} stepIdx  — current step (1-based)
+         *  @param {number} total    — total steps to move           */
+        step(stepIdx = 1, total = 6) {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+
+            // Pentatonic scale: C D E G A — maps step progress to rising pitch
+            const scale = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84, 86];
+            const progress = Math.min((stepIdx - 1) / Math.max(total - 1, 1), 1);
+            const noteIdx = Math.round(progress * (scale.length - 1));
+            const midi = scale[noteIdx];
+            const freq = this._hz(midi);
+
+            // Volume builds slightly toward destination
+            const volScale = 0.7 + progress * 0.3;
+
+            // Main tap (wood block feel)
+            this._t(d, w, 'sine', freq, t, 0.08, v * 0.22 * volScale, 0.002, 0.05);
+            // Harmonic shimmer (bell)
+            this._t(d, null, 'sine', freq * 2.5, t + 0.003, 0.05, v * 0.05 * volScale, 0.001, 0.035);
+            // Subtle thud of foot
+            this._t(d, null, 'sine', 100, t + 0.005, 0.04, v * 0.08, 0.001, 0.03);
+            // Tiny click transient
+            this._n(d, null, t, 0.008, v * 0.04, 4000, 12000);
+        },
+
+        /** 🎯 Pawn lands — triumphant arrival with weight */
+        land() {
+            const t = this.ctx.currentTime, d = this._sfxDry, w = this._sfxWet, v = this.volume;
+            // Deep thud
+            this._t(d, null, 'sine', 70, t, 0.3, v * 0.5, 0.003, 0.22);
+            this._t(d, null, 'sine', 140, t + 0.005, 0.15, v * 0.25, 0.003, 0.1);
+            // Bright arrival chime
+            this._t(d, w, 'sine', this._hz(72), t + 0.02, 0.25, v * 0.28, 0.003, 0.18);
+            this._t(d, w, 'sine', this._hz(76), t + 0.05, 0.2, v * 0.18, 0.003, 0.14);
+            // Shimmer
+            this._t(d, null, 'sine', this._hz(84), t + 0.06, 0.12, v * 0.04, 0.002, 0.08);
+            // Impact noise
+            this._n(d, null, t, 0.06, v * 0.1, 200, 3000);
+            // Surface vibration
+            this._n(d, w, t + 0.03, 0.15, v * 0.02, 400, 1500);
         },
 
         /** 💰 Money gained — sparkly ascending cascade */

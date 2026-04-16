@@ -202,7 +202,7 @@ export async function animateTokenHop(player, fromId, spacesToMove) {
         const zone = document.getElementById(`zone-${tempId}`);
         if (zone) zone.appendChild(token);
 
-        SoundManager.play('step');
+        SoundManager.play('step', step, spacesToMove, step, spacesToMove);
         token.style.transform = 'scale(1.35) translateY(-18px)';
         await sleep(180);
         token.style.transform = 'scale(1) translateY(0)';

@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { Scene3D } from './Scene3D.js';
 import { Board3D } from './Board3D.js';
+import { SoundManager } from '../utils/SoundManager.js';
 
 const TOKEN_SCALE = 1.4;
 const JUMP_HEIGHT = 2.5;
@@ -347,6 +348,12 @@ export const PlayerToken3D = {
 
             // Trail effect — highlight space
             Board3D.pulseSpace(targetIdx);
+// Progressive hop sound (pitch rises toward destination)
+            SoundManager.play('step', step, spacesToMove);
+
+            
+            // Progressive hop sound (pitch rises toward destination)
+            SoundManager.play('step', step, spacesToMove);
 
             await this._jumpArc(token, startPos, endPos);
             token.userData.currentSpace = targetIdx;
